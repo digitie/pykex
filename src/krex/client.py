@@ -855,7 +855,7 @@ def _place_coordinate_from_xy(x: float | None, y: float | None) -> PlaceCoordina
 
 def _place_coordinate_from_lon_lat(lon: float, lat: float) -> PlaceCoordinate | None:
     if 124 <= lon <= 132 and 33 <= lat <= 39:
-        return PlaceCoordinate(lon=lon, lat=lat)
+        return PlaceCoordinate(lat=lat, lon=lon)
     return None
 
 

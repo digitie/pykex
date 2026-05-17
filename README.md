@@ -289,7 +289,7 @@ client.traffic.by_ic(
 
 ## 위경도 표준화
 
-라이브러리에서 표준 위경도는 `kraddr.base.PlaceCoordinate(lon, lat)`로 표현합니다. `lon`이 먼저 오는 순서는 GeoJSON과 대부분의 GIS API에 맞춘 것입니다.
+라이브러리에서 표준 위경도 DTO는 `kraddr.base.PlaceCoordinate(lat=..., lon=...)`로 표현합니다. GeoJSON, WKT, 외부 GIS 전송 경계에서는 각 표준에 맞춰 `(lon, lat)` 순서로 변환합니다.
 
 ```python
 rest_area = client.restarea.list_all().first
@@ -423,7 +423,7 @@ except KexServerError:
 - `data.ex.co.kr` 응답은 `list` 대신 endpoint 이름(`trafficIc` 등)을 top-level 배열 키로 사용할 수 있습니다.
 - 표준데이터 API는 `_type`이 아니라 `type=json`을 쓰는 경우가 있습니다.
 - 영업소/노선/기관 코드는 선행 0이 의미 있으므로 `int`로 바꾸지 않습니다.
-- 외부 표준 좌표는 `kraddr.base.PlaceCoordinate(lon, lat)`입니다. UI용 `(lat, lon)`은 `point.latlon`을 사용하세요.
+- 외부 표준 좌표 DTO는 `kraddr.base.PlaceCoordinate(lat=..., lon=...)`입니다. GeoJSON/GIS 경계용 `(lon, lat)`은 `point.lonlat` 또는 명시 변환 메서드를 사용하세요.
 - 응답의 `items.item`, `list`, `data`는 단일 `dict` 또는 `list[dict]` 양쪽을 처리합니다.
 - `count=0`은 `None`이 아니라 정수 `0`으로 보존해야 합니다.
 - `NO_DATA`는 기본적으로 `KexNotFoundError`입니다. 빈 결과로 받고 싶으면 `KexClient(strict_no_data=False)`를 사용합니다.

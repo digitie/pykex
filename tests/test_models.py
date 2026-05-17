@@ -27,7 +27,7 @@ def test_empty_page_helpers() -> None:
 
 
 def test_place_coordinate_standardizes_lon_lat_and_aliases() -> None:
-    point = PlaceCoordinate(lon="127.104", lat="37.332")
+    point = PlaceCoordinate(lat="37.332", lon="127.104")
 
     assert point.lonlat == (127.104, 37.332)
     assert point.latlon == (37.332, 127.104)
@@ -39,7 +39,7 @@ def test_place_coordinate_standardizes_lon_lat_and_aliases() -> None:
 
 
 def test_pydantic_models_are_frozen_and_schema_ready() -> None:
-    point = PlaceCoordinate(lon=127.104, lat=37.332)
+    point = PlaceCoordinate(lat=37.332, lon=127.104)
     schema = PlaceCoordinate.model_json_schema()
 
     with pytest.raises(ValidationError):
@@ -51,9 +51,9 @@ def test_pydantic_models_are_frozen_and_schema_ready() -> None:
 
 def test_place_coordinate_validates_ranges() -> None:
     with pytest.raises(ValueError):
-        PlaceCoordinate(lon=181, lat=37)
+        PlaceCoordinate(lat=37, lon=181)
     with pytest.raises(ValueError):
-        PlaceCoordinate(lon=127, lat=91)
+        PlaceCoordinate(lat=91, lon=127)
 
 
 def test_raw_coordinate_defaults_to_unknown_system() -> None:
