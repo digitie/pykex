@@ -95,7 +95,7 @@ Never rely on HTTP status alone. Inspect body-level result codes.
 - Convert Y/N fields to `bool | None`.
 - Keep public models based on `KexModel` so external callers can rely on
   `model_dump()`, `model_validate()`, and `model_json_schema()`.
-- Expose standard WGS84 positions as `kraddr.base.PlaceCoordinate(lon, lat)`. Keep legacy
+- Expose standard WGS84 positions as `kraddr.base.PlaceCoordinate(lat, lon)`. Keep legacy
   `lat`/`lon` and `x`/`y` fields when already public, but prefer `coordinate`
   for new code.
 - Expose address data as `kraddr.base.Address`. Free-form address strings may fill

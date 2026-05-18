@@ -21,13 +21,22 @@ This repository follows the same working shape as `pykma` and `pyopinet`.
   corrupted in PowerShell output.
 - Keep public return values typed Pydantic models or enum values, not raw strings,
   whenever the field has a stable meaning.
-- Use `kraddr.base.PlaceCoordinate(lon, lat)` for public WGS84 coordinates and
+- Use `kraddr.base.PlaceCoordinate(lat, lon)` for public WGS84 coordinates and
   expose raw ambiguous coordinates separately.
 - Use `kraddr.base.Address` for public address data. Do not guess a 10-digit
   legal-dong code from free-form address text; preserve it only when the
   provider row or a verified geocoder/boundary lookup supplies it.
 - Preserve code-like identifiers exactly as strings when leading zeroes matter
   (`routeNo`, `unitCode`, branch codes, office codes).
+- Before starting external API work, apply the direct public API rule first:
+  do not create provider-specific wrapper/adapter/gateway layers.
+- Provide stable public clients, typed models, enums, and helpers that downstream
+  users can call directly.
+- If TripMate or `python-krtour-map` needs missing endpoints, pagination,
+  cursors, exceptions, or raw payload contracts, stabilize them in this package
+  instead of adding a temporary facade downstream.
+- Remove long-lived compatibility aliases and pass-through wrappers when the
+  calling code can be updated to the stable public API.
 - Handle `list` and single `dict` item shapes. Korean public APIs often switch
   between them when only one item is returned.
 - Handle endpoint-named top-level arrays from `data.ex.co.kr`, such as
