@@ -2,39 +2,76 @@
 
 from __future__ import annotations
 
+import asyncio
+import inspect
+import threading
+from collections.abc import Awaitable, Coroutine
 from dataclasses import dataclass, field
-from time import sleep
-from typing import Any
+from typing import Any, TypeVar, cast
 
 from ._convert import normalize_items, to_int_or_none
 from .exceptions import (
-    KexAuthError,
-    KexBadRequestError,
-    KexConfigError,
-    KexConnectionError,
-    KexError,
-    KexInvalidParameterError,
-    KexMissingParameterError,
-    KexNetworkError,
-    KexNotFoundError,
-    KexParseError,
-    KexQuotaExceededError,
-    KexServerError,
-    KexServiceUnavailableError,
-    KexTimeoutError,
+    KrexAuthError,
+    KrexBadRequestError,
+    KrexConfigError,
+    KrexConnectionError,
+    KrexError,
+    KrexInvalidParameterError,
+    KrexMissingParameterError,
+    KrexNetworkError,
+    KrexNotFoundError,
+    KrexParseError,
+    KrexQuotaExceededError,
+    KrexServerError,
+    KrexServiceUnavailableError,
+    KrexTimeoutError,
 )
 
+T = TypeVar("T")
 
-def _load_requests() -> Any:
+
+def _load_httpx() -> Any:
     try:
-        import requests
+        import httpx
     except ModuleNotFoundError as exc:
-        raise KexConfigError("requests is required; install python-krex-api dependencies") from exc
-    return requests
+        raise KrexConfigError("httpx is required; install python-krex-api dependencies") from exc
+    return httpx
 
 
-def _new_session() -> Any:
-    return _load_requests().Session()
+def _run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
+    """Run async transport code from the sync public API.
+
+    Streamlit, notebooks, and GUI apps may already have a running event loop. In that case the
+    coroutine is executed in a short-lived worker thread with its own loop so the sync API remains
+    usable without nesting event loops.
+    """
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coroutine)
+
+    result: list[T] = []
+    errors: list[BaseException] = []
+
+    def runner() -> None:
+        try:
+            result.append(asyncio.run(coroutine))
+        except BaseException as exc:  # noqa: BLE001 - propagate the original transport error.
+            errors.append(exc)
+
+    thread = threading.Thread(target=runner, daemon=True)
+    thread.start()
+    thread.join()
+    if errors:
+        raise errors[0]
+    return result[0]
+
+
+async def _maybe_await(value: T | Awaitable[T]) -> T:
+    if inspect.isawaitable(value):
+        return await cast(Awaitable[T], value)
+    return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,13 +84,13 @@ class NormalizedPayload:
 
 
 @dataclass(slots=True)
-class KexHttp:
+class KrexHttp:
     ex_api_key: str | None = field(default=None, repr=False)
     go_api_key: str | None = field(default=None, repr=False)
     timeout: float = 10.0
     max_retries: int = 2
     retry_backoff: float = 0.5
-    session: Any = field(default_factory=_new_session, repr=False)
+    session: Any | None = field(default=None, repr=False)
     ex_base_url: str = "https://data.ex.co.kr"
     last_request: dict[str, Any] | None = field(default=None, init=False, repr=False)
     last_response: dict[str, Any] | None = field(default=None, init=False, repr=False)
@@ -61,18 +98,19 @@ class KexHttp:
     def __post_init__(self) -> None:
         self.ex_api_key = normalize_api_key(self.ex_api_key)
         self.go_api_key = normalize_api_key(self.go_api_key)
-        if self.session is None:
-            self.session = _new_session()
 
     def get_ex(self, path: str, params: dict[str, Any] | None = None) -> NormalizedPayload:
+        return _run_sync(self.aget_ex(path, params))
+
+    async def aget_ex(self, path: str, params: dict[str, Any] | None = None) -> NormalizedPayload:
         key = normalize_api_key(self.ex_api_key)
         if not key:
-            raise KexAuthError("KEX_EX_API_KEY is not set and ex_api_key was not provided")
+            raise KrexAuthError("KEX_EX_API_KEY is not set and ex_api_key was not provided")
         query = {"key": key, "type": "json"}
         if params:
             query.update(params)
         url = f"{self.ex_base_url.rstrip('/')}/{path.lstrip('/')}"
-        return self._get(url, query, provider="ex")
+        return await self._get(url, query, provider="ex")
 
     def get_go(
         self,
@@ -81,51 +119,98 @@ class KexHttp:
         *,
         standard: bool = False,
     ) -> NormalizedPayload:
+        return _run_sync(self.aget_go(url, params, standard=standard))
+
+    async def aget_go(
+        self,
+        url: str,
+        params: dict[str, Any] | None = None,
+        *,
+        standard: bool = False,
+    ) -> NormalizedPayload:
         key = normalize_api_key(self.go_api_key)
         if not key:
-            raise KexAuthError("KEX_GO_API_KEY is not set and go_api_key was not provided")
+            raise KrexAuthError("KEX_GO_API_KEY is not set and go_api_key was not provided")
         query = {"serviceKey": key}
         query["type" if standard else "_type"] = "json"
         if params:
             query.update(params)
-        return self._get(url, query, provider="go")
+        return await self._get(url, query, provider="go")
 
-    def _get(self, url: str, params: dict[str, Any], *, provider: str) -> NormalizedPayload:
-        requests = _load_requests()
+    async def _get(self, url: str, params: dict[str, Any], *, provider: str) -> NormalizedPayload:
+        httpx = _load_httpx()
         attempts = max(0, self.max_retries) + 1
-        last_error: KexNetworkError | None = None
+        last_error: KrexNetworkError | None = None
         self.last_request = {"method": "GET", "url": url, "query": _mask_params(params)}
         self.last_response = None
+        session = self.session
+        close_after_request = False
+        if session is None:
+            session = httpx.AsyncClient(timeout=self.timeout, follow_redirects=True)
+            close_after_request = True
 
-        for attempt in range(attempts):
-            try:
-                response = self.session.get(url, params=params, timeout=self.timeout)
-            except requests.Timeout as exc:
-                last_error = KexTimeoutError(str(exc), url=url, params=_mask_params(params))
-                if attempt < attempts - 1:
-                    self._sleep_before_retry(attempt)
+        try:
+            for attempt in range(attempts):
+                try:
+                    response = await self._request_get(session, url, params)
+                except httpx.TimeoutException as exc:
+                    last_error = KrexTimeoutError(str(exc), url=url, params=_mask_params(params))
+                    if attempt < attempts - 1:
+                        await self._sleep_before_retry(attempt)
+                        continue
+                    raise last_error from exc
+                except httpx.NetworkError as exc:
+                    last_error = KrexConnectionError(str(exc), url=url, params=_mask_params(params))
+                    if attempt < attempts - 1:
+                        await self._sleep_before_retry(attempt)
+                        continue
+                    raise last_error from exc
+                except httpx.HTTPError as exc:
+                    last_error = KrexConnectionError(str(exc), url=url, params=_mask_params(params))
+                    if attempt < attempts - 1:
+                        await self._sleep_before_retry(attempt)
+                        continue
+                    raise last_error from exc
+
+                if 500 <= response.status_code < 600 and attempt < attempts - 1:
+                    await self._sleep_before_retry(attempt)
                     continue
-                raise last_error from exc
-            except requests.ConnectionError as exc:
-                last_error = KexConnectionError(str(exc), url=url, params=_mask_params(params))
-                if attempt < attempts - 1:
-                    self._sleep_before_retry(attempt)
-                    continue
-                raise last_error from exc
 
-            if 500 <= response.status_code < 600 and attempt < attempts - 1:
-                self._sleep_before_retry(attempt)
-                continue
-
-            return self._raise_for_response(response, provider=provider, params=params)
+                return self._raise_for_response(response, provider=provider, params=params)
+        finally:
+            if close_after_request:
+                await _close_session(session)
 
         if last_error is not None:
             raise last_error
-        raise KexServerError("request failed after retries", url=url, params=_mask_params(params))
+        raise KrexServerError("request failed after retries", url=url, params=_mask_params(params))
 
-    def _sleep_before_retry(self, attempt: int) -> None:
+    async def _request_get(self, session: Any, url: str, params: dict[str, Any]) -> Any:
+        response = session.get(url, params=params, timeout=self.timeout)
+        return await _maybe_await(response)
+
+    async def _sleep_before_retry(self, attempt: int) -> None:
         if self.retry_backoff > 0:
-            sleep(self.retry_backoff * (2**attempt))
+            await asyncio.sleep(self.retry_backoff * (2**attempt))
+
+    async def aclose(self) -> None:
+        if self.session is not None:
+            await _close_session(self.session)
+
+    def close(self) -> None:
+        _run_sync(self.aclose())
+
+    async def __aenter__(self) -> KrexHttp:
+        return self
+
+    async def __aexit__(self, *_exc_info: Any) -> None:
+        await self.aclose()
+
+    def __enter__(self) -> KrexHttp:
+        return self
+
+    def __exit__(self, *_exc_info: Any) -> None:
+        self.close()
 
     def _raise_for_response(
         self,
@@ -139,27 +224,31 @@ class KexHttp:
         headers = _response_headers(response)
         if status in (401, 403):
             self.last_response = _debug_response(status, headers, response.text[:200])
-            raise KexAuthError(
+            raise KrexAuthError(
                 f"HTTP {status}: {response.text[:200]}",
                 http_status=status,
                 params=masked_params,
             )
         if status == 400:
             self.last_response = _debug_response(status, headers, response.text[:200])
-            raise KexBadRequestError(response.text[:200], http_status=status, params=masked_params)
+            raise KrexBadRequestError(response.text[:200], http_status=status, params=masked_params)
         if status == 404:
             self.last_response = _debug_response(status, headers, response.text[:200])
-            raise KexBadRequestError("endpoint not found", http_status=status, params=masked_params)
+            raise KrexBadRequestError(
+                "endpoint not found",
+                http_status=status,
+                params=masked_params,
+            )
         if status == 429:
             self.last_response = _debug_response(status, headers, response.text[:200])
-            raise KexQuotaExceededError(
+            raise KrexQuotaExceededError(
                 response.text[:200],
                 http_status=status,
                 params=masked_params,
             )
         if 500 <= status < 600:
             self.last_response = _debug_response(status, headers, response.text[:200])
-            raise KexServerError(
+            raise KrexServerError(
                 f"HTTP {status}: {response.text[:200]}",
                 http_status=status,
                 params=masked_params,
@@ -169,14 +258,14 @@ class KexHttp:
             payload = response.json()
         except ValueError as exc:
             self.last_response = _debug_response(status, headers, response.text[:200])
-            raise KexParseError(
+            raise KrexParseError(
                 f"JSON parse failure: {exc}",
                 http_status=status,
                 params=masked_params,
             ) from exc
         self.last_response = _debug_response(status, headers, payload)
         if not isinstance(payload, dict):
-            raise KexParseError(
+            raise KrexParseError(
                 "response JSON must be an object",
                 response=payload,
                 params=masked_params,
@@ -197,7 +286,7 @@ def _normalize_ex_payload(payload: dict[str, Any], *, params: dict[str, Any]) ->
     try:
         items = normalize_items(raw_items, "items")
     except TypeError as exc:
-        raise KexParseError(str(exc), response=payload, params=params) from exc
+        raise KrexParseError(str(exc), response=payload, params=params) from exc
     return NormalizedPayload(
         items=items,
         page_no=to_int_or_none(payload.get("pageNo")),
@@ -213,12 +302,12 @@ def _normalize_go_payload(payload: dict[str, Any], *, params: dict[str, Any]) ->
         header = response["header"]
         body = response.get("body", {})
     except (KeyError, TypeError) as exc:
-        raise KexParseError(
+        raise KrexParseError(
             "data.go.kr response did not contain response.header",
             response=payload,
         ) from exc
     if not isinstance(header, dict) or not isinstance(body, dict):
-        raise KexParseError("data.go.kr header/body must be objects", response=payload)
+        raise KrexParseError("data.go.kr header/body must be objects", response=payload)
 
     code = str(header.get("resultCode", ""))
     message = str(header.get("resultMsg", ""))
@@ -231,7 +320,7 @@ def _normalize_go_payload(payload: dict[str, Any], *, params: dict[str, Any]) ->
     try:
         items = normalize_items(raw_items, "response.body.items")
     except TypeError as exc:
-        raise KexParseError(str(exc), response=payload, params=params) from exc
+        raise KrexParseError(str(exc), response=payload, params=params) from exc
     return NormalizedPayload(
         items=items,
         page_no=to_int_or_none(body.get("pageNo")),
@@ -268,20 +357,20 @@ def _raise_ex_code(
     text = f"data.ex.co.kr returned {code}: {message}"
     kwargs: dict[str, Any] = {"code": code, "response": payload, "params": params}
     if code in {"INVALID_KEY", "EXPIRED_KEY", "NO_REGISTERED_KEY"}:
-        raise KexAuthError(text, **kwargs)
+        raise KrexAuthError(text, **kwargs)
     if code == "EXCEEDED_LIMIT":
-        raise KexQuotaExceededError(text, **kwargs)
+        raise KrexQuotaExceededError(text, **kwargs)
     if code == "INVALID_REQUEST_PARAMETER":
-        raise KexMissingParameterError(text, **kwargs)
+        raise KrexMissingParameterError(text, **kwargs)
     if code == "INVALID_PARAMETER_VALUE":
-        raise KexInvalidParameterError(text, **kwargs)
+        raise KrexInvalidParameterError(text, **kwargs)
     if code == "NO_DATA":
-        raise KexNotFoundError(text, **kwargs)
+        raise KrexNotFoundError(text, **kwargs)
     if code in {"SERVICE_TIMEOUT", "SERVICE_UNAVAILABLE"}:
-        raise KexServiceUnavailableError(text, **kwargs)
+        raise KrexServiceUnavailableError(text, **kwargs)
     if code == "SYSTEM_ERROR":
-        raise KexServerError(text, **kwargs)
-    raise KexError(text, **kwargs)
+        raise KrexServerError(text, **kwargs)
+    raise KrexError(text, **kwargs)
 
 
 def _raise_go_code(
@@ -293,22 +382,22 @@ def _raise_go_code(
     text = f"data.go.kr returned {code}: {message}"
     kwargs: dict[str, Any] = {"code": code, "response": payload, "params": params}
     if code in {"01", "02", "04"}:
-        raise KexServerError(text, **kwargs)
+        raise KrexServerError(text, **kwargs)
     if code == "03":
-        raise KexNotFoundError(text, **kwargs)
+        raise KrexNotFoundError(text, **kwargs)
     if code == "05":
-        raise KexServiceUnavailableError(text, **kwargs)
+        raise KrexServiceUnavailableError(text, **kwargs)
     if code == "10":
-        raise KexInvalidParameterError(text, **kwargs)
+        raise KrexInvalidParameterError(text, **kwargs)
     if code == "11":
-        raise KexMissingParameterError(text, **kwargs)
+        raise KrexMissingParameterError(text, **kwargs)
     if code == "12":
-        raise KexBadRequestError(text, **kwargs)
+        raise KrexBadRequestError(text, **kwargs)
     if code in {"20", "21", "30", "31", "32", "33"}:
-        raise KexAuthError(text, **kwargs)
+        raise KrexAuthError(text, **kwargs)
     if code == "22":
-        raise KexQuotaExceededError(text, **kwargs)
-    raise KexError(text, **kwargs)
+        raise KrexQuotaExceededError(text, **kwargs)
+    raise KrexError(text, **kwargs)
 
 
 def _mask_params(params: dict[str, Any]) -> dict[str, Any]:
@@ -338,3 +427,13 @@ def _response_headers(response: Any) -> dict[str, str]:
 
 def _debug_response(status_code: int, headers: dict[str, str], body: Any) -> dict[str, Any]:
     return {"status_code": status_code, "headers": headers, "body": body}
+
+
+async def _close_session(session: Any) -> None:
+    aclose = getattr(session, "aclose", None)
+    if callable(aclose):
+        await _maybe_await(aclose())
+        return
+    close = getattr(session, "close", None)
+    if callable(close):
+        await _maybe_await(close())

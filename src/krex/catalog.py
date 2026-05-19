@@ -292,6 +292,19 @@ def get_api_catalog(
     return items
 
 
+def api_catalog(
+    *,
+    provider: str | None = None,
+    namespace: str | None = None,
+) -> tuple[ApiCatalogItem, ...]:
+    """Return the implemented API catalog.
+
+    This mirrors the public helper name used by python-krheritage-api.
+    """
+
+    return get_api_catalog(provider=provider, namespace=namespace)
+
+
 def get_api_catalog_item(function: str) -> ApiCatalogItem | None:
     """Find one catalog item by a public function name such as traffic.flow."""
 
@@ -299,3 +312,9 @@ def get_api_catalog_item(function: str) -> ApiCatalogItem | None:
         if item.function == function:
             return item
     return None
+
+
+def api_catalog_item(function: str) -> ApiCatalogItem | None:
+    """Find one catalog item by public function name."""
+
+    return get_api_catalog_item(function)

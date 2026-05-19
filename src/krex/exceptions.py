@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 
-class KexError(Exception):
+class KrexError(Exception):
     """모든 python-krex-api 예외의 공통 기반 클래스."""
 
     def __init__(
@@ -29,53 +29,53 @@ class KexError(Exception):
         self.retry_after = retry_after
 
 
-class KexAuthError(KexError):
+class KrexAuthError(KrexError):
     """API 키가 없거나, 잘못됐거나, 만료됐거나, 권한이 없을 때 발생합니다."""
 
 
-class KexQuotaExceededError(KexError):
+class KrexQuotaExceededError(KrexError):
     """API가 호출 한도 초과를 보고할 때 발생합니다."""
 
 
-class KexBadRequestError(KexError):
+class KrexBadRequestError(KrexError):
     """요청 형식이 잘못됐거나 거부됐을 때 발생합니다."""
 
 
-class KexMissingParameterError(KexBadRequestError):
+class KrexMissingParameterError(KrexBadRequestError):
     """제공자가 필수 파라미터 누락을 보고할 때 발생합니다."""
 
 
-class KexInvalidParameterError(KexBadRequestError):
+class KrexInvalidParameterError(KrexBadRequestError):
     """로컬 또는 원격 파라미터 값이 유효하지 않을 때 발생합니다."""
 
 
-class KexNotFoundError(KexError):
+class KrexNotFoundError(KrexError):
     """제공자가 조건에 맞는 데이터가 없다고 보고할 때 발생합니다."""
 
 
-class KexServerError(KexError):
+class KrexServerError(KrexError):
     """제공자 서버 또는 게이트웨이 장애일 때 발생합니다."""
 
 
-class KexServiceUnavailableError(KexServerError):
+class KrexServiceUnavailableError(KrexServerError):
     """제공자 서비스를 일시적으로 사용할 수 없을 때 발생합니다."""
 
 
-class KexParseError(KexError):
+class KrexParseError(KrexError):
     """응답을 예상한 형태로 파싱할 수 없을 때 발생합니다."""
 
 
-class KexNetworkError(KexError):
+class KrexNetworkError(KrexError):
     """네트워크 계층 장애일 때 발생합니다."""
 
 
-class KexTimeoutError(KexNetworkError):
+class KrexTimeoutError(KrexNetworkError):
     """요청 시간이 초과됐을 때 발생합니다."""
 
 
-class KexConnectionError(KexNetworkError):
+class KrexConnectionError(KrexNetworkError):
     """연결을 만들 수 없을 때 발생합니다."""
 
 
-class KexConfigError(KexError):
+class KrexConfigError(KrexError):
     """클라이언트에 필요한 로컬 설정이 없을 때 발생합니다."""

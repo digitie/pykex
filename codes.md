@@ -265,8 +265,8 @@ API에서는 4자리 숫자 형태(`0010`, `0150` 등)로 사용. 마지막 0은
 라이브러리에는 명칭→코드 양방향 검색 헬퍼가 포함됩니다.
 
 ```python
-from krex import KexClient
-client = KexClient()
+from krex import KrexClient
+client = KrexClient()
 
 # 명칭으로 검색
 matches = client.codes.tollgate_lookup("부산")

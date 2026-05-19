@@ -48,7 +48,7 @@ model is harder.
 The debug UI workflow is fixture-first:
 
 - Keep Streamlit or other UI dependencies outside this library.
-- Use `KexClient.debug_call()` to capture input, request, response, parsed,
+- Use `KrexClient.debug_call()` to capture input, request, response, parsed,
   processed, trace, catalog, and error fields in a `DebugRun`.
 - Keep `src/krex/catalog.py` updated so debug UIs can show human-readable
   dataset names and service-key request links.
@@ -65,7 +65,7 @@ The debug UI workflow is fixture-first:
 
 When `pykma`, `pyopinet`, or another sibling project already has a tested
 implementation for the same provider endpoint, prefer porting that behavior
-directly into the existing `KexClient` namespace. Do not add an extra standalone
+directly into the existing `KrexClient` namespace. Do not add an extra standalone
 wrapper/client just to mirror the source library if the endpoint already fits
 `src/krex/client.py`.
 

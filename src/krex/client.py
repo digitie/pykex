@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -17,7 +18,7 @@ from ._convert import (
     to_int_or_none,
 )
 from ._env import get_local_env_value
-from ._http import KexHttp, NormalizedPayload, normalize_api_key
+from ._http import KrexHttp, NormalizedPayload, normalize_api_key
 from .catalog import get_api_catalog, get_api_catalog_item
 from .codes import (
     ROUTE_NAMES,
@@ -27,14 +28,14 @@ from .codes import (
     Direction,
     DiscountType,
     IOType,
-    KexCode,
+    KrexCode,
     RoadOperator,
     TCSType,
     TimeUnit,
     coerce_code,
 )
 from .debug import DebugRun, exception_to_debug_error, jsonable
-from .exceptions import KexInvalidParameterError, KexNotFoundError, KexParseError
+from .exceptions import KrexInvalidParameterError, KrexNotFoundError, KrexParseError
 from .models import (
     ApiCatalogItem,
     FoodPrice,
@@ -53,12 +54,12 @@ from .models import (
 )
 
 T = TypeVar("T")
-E = TypeVar("E", bound=KexCode)
+E = TypeVar("E", bound=KrexCode)
 KST = timezone(timedelta(hours=9), "KST")
 
 
-class KexClient:
-    """KEX OpenAPI 호출 진입점.
+class KrexClient:
+    """Krex OpenAPI 호출 진입점.
 
     엔드포인트 문서(`endpoints.md`)와 메서드 이름이 비슷하게 보이도록
     `traffic`, `tollfee`, `restarea`, `facility`, `admin`, `reference`
@@ -83,7 +84,7 @@ class KexClient:
             get_local_env_value("KEX_GO_API_KEY")
         )
         self.strict_no_data = strict_no_data
-        self._http = KexHttp(
+        self._http = KrexHttp(
             self.ex_api_key,
             self.go_api_key,
             timeout=timeout,
@@ -91,16 +92,26 @@ class KexClient:
             retry_backoff=retry_backoff,
             session=session,
         )
-        self.traffic = TrafficNamespace(self)
-        self.tollfee = TollfeeNamespace(self)
-        self.restarea = RestareaNamespace(self)
-        self.facility = FacilityNamespace(self)
-        self.admin = AdminNamespace(self)
-        self.reference = ReferenceNamespace(self)
+        self.traffic = TrafficService(self)
+        self.tollfee = TollfeeService(self)
+        self.restarea = RestareaService(self)
+        self.facility = FacilityService(self)
+        self.admin = AdminService(self)
+        self.reference = ReferenceService(self)
+        self.closed = False
 
     @classmethod
-    def from_env(cls, **kwargs: Any) -> KexClient:
+    def from_env(cls, **kwargs: Any) -> KrexClient:
         return cls(**kwargs)
+
+    @classmethod
+    def aio(cls, **kwargs: Any) -> AsyncKrexClient:
+        return AsyncKrexClient(**kwargs)
+
+    async def adebug_call(self, function: str, **params: Any) -> DebugRun:
+        """Async wrapper for debug execution in asyncio applications."""
+
+        return await asyncio.to_thread(self.debug_call, function, **params)
 
     def debug_call(self, function: str, **params: Any) -> DebugRun:
         """외부 Debug UI가 사용할 수 있는 단일 함수 실행 정보를 반환합니다."""
@@ -141,12 +152,32 @@ class KexClient:
     def _resolve_debug_function(self, function: str) -> Callable[..., Any]:
         parts = function.split(".")
         if len(parts) != 2 or any(part.startswith("_") or not part for part in parts):
-            raise KexInvalidParameterError("function must look like 'namespace.method'")
+            raise KrexInvalidParameterError("function must look like 'namespace.method'")
         namespace = getattr(self, parts[0], None)
         method = getattr(namespace, parts[1], None)
         if not callable(method):
-            raise KexInvalidParameterError(f"unknown debug function: {function}")
+            raise KrexInvalidParameterError(f"unknown debug function: {function}")
         return cast(Callable[..., Any], method)
+
+    async def aclose(self) -> None:
+        await self._http.aclose()
+        self.closed = True
+
+    def close(self) -> None:
+        self._http.close()
+        self.closed = True
+
+    async def __aenter__(self) -> KrexClient:
+        return self
+
+    async def __aexit__(self, *_exc_info: Any) -> None:
+        await self.aclose()
+
+    def __enter__(self) -> KrexClient:
+        return self
+
+    def __exit__(self, *_exc_info: Any) -> None:
+        self.close()
 
     def _page_ex(
         self,
@@ -156,7 +187,21 @@ class KexClient:
     ) -> Page[T]:
         try:
             payload = self._http.get_ex(path, _clean(params))
-        except KexNotFoundError:
+        except KrexNotFoundError:
+            if self.strict_no_data:
+                raise
+            return Page(items=())
+        return _parse_page(payload, parser)
+
+    async def _apage_ex(
+        self,
+        path: str,
+        params: dict[str, Any],
+        parser: Callable[[dict[str, Any]], T],
+    ) -> Page[T]:
+        try:
+            payload = await self._http.aget_ex(path, _clean(params))
+        except KrexNotFoundError:
             if self.strict_no_data:
                 raise
             return Page(items=())
@@ -172,16 +217,103 @@ class KexClient:
     ) -> Page[T]:
         try:
             payload = self._http.get_go(url, _clean(params), standard=standard)
-        except KexNotFoundError:
+        except KrexNotFoundError:
+            if self.strict_no_data:
+                raise
+            return Page(items=())
+        return _parse_page(payload, parser)
+
+    async def _apage_go(
+        self,
+        url: str,
+        params: dict[str, Any],
+        parser: Callable[[dict[str, Any]], T],
+        *,
+        standard: bool = False,
+    ) -> Page[T]:
+        try:
+            payload = await self._http.aget_go(url, _clean(params), standard=standard)
+        except KrexNotFoundError:
             if self.strict_no_data:
                 raise
             return Page(items=())
         return _parse_page(payload, parser)
 
 
+class AsyncKrexClient:
+    """Asynchronous facade matching the `KrexClient.aio()` construction style."""
+
+    def __init__(
+        self,
+        ex_api_key: str | None = None,
+        go_api_key: str | None = None,
+        *,
+        timeout: float = 10.0,
+        strict_no_data: bool = True,
+        max_retries: int = 2,
+        retry_backoff: float = 0.5,
+        session: Any | None = None,
+    ) -> None:
+        self._sync_client = KrexClient(
+            ex_api_key=ex_api_key,
+            go_api_key=go_api_key,
+            timeout=timeout,
+            strict_no_data=strict_no_data,
+            max_retries=max_retries,
+            retry_backoff=retry_backoff,
+            session=session,
+        )
+        self.traffic = _AsyncServiceProxy(self._sync_client.traffic)
+        self.tollfee = _AsyncServiceProxy(self._sync_client.tollfee)
+        self.restarea = _AsyncServiceProxy(self._sync_client.restarea)
+        self.facility = _AsyncServiceProxy(self._sync_client.facility)
+        self.admin = _AsyncServiceProxy(self._sync_client.admin)
+        self.reference = _AsyncServiceProxy(self._sync_client.reference)
+        self.closed = False
+
+    @property
+    def ex_api_key(self) -> str | None:
+        return self._sync_client.ex_api_key
+
+    @property
+    def go_api_key(self) -> str | None:
+        return self._sync_client.go_api_key
+
+    async def debug_call(self, function: str, **params: Any) -> DebugRun:
+        return await self._sync_client.adebug_call(function, **params)
+
+    async def adebug_call(self, function: str, **params: Any) -> DebugRun:
+        return await self.debug_call(function, **params)
+
+    async def aclose(self) -> None:
+        await self._sync_client.aclose()
+        self.closed = True
+
+    async def __aenter__(self) -> AsyncKrexClient:
+        return self
+
+    async def __aexit__(self, *_exc_info: Any) -> None:
+        await self.aclose()
+
+
+class _AsyncServiceProxy:
+    def __init__(self, service: Any) -> None:
+        self._service = service
+
+    def __getattr__(self, name: str) -> Any:
+        value = getattr(self._service, name)
+        if not callable(value):
+            return value
+
+        async def call(*args: Any, **kwargs: Any) -> Any:
+            return await asyncio.to_thread(value, *args, **kwargs)
+
+        return call
+
+
 @dataclass(frozen=True, slots=True)
-class TrafficNamespace:
-    _client: KexClient
+class TrafficService:
+    _client: KrexClient
 
     def by_ic(
         self,
@@ -289,8 +421,8 @@ class TrafficNamespace:
 
 
 @dataclass(frozen=True, slots=True)
-class TollfeeNamespace:
-    _client: KexClient
+class TollfeeService:
+    _client: KrexClient
 
     def between_tollgates(
         self,
@@ -326,8 +458,8 @@ class TollfeeNamespace:
 
 
 @dataclass(frozen=True, slots=True)
-class RestareaNamespace:
-    _client: KexClient
+class RestareaService:
+    _client: KrexClient
 
     def route_facilities(
         self,
@@ -401,7 +533,7 @@ class RestareaNamespace:
             target = base - timedelta(hours=offset)
             try:
                 page = self.weather(sdate=target, std_hour=target.hour)
-            except KexNotFoundError:
+            except KrexNotFoundError:
                 continue
             if page.items:
                 return page
@@ -478,8 +610,8 @@ class RestareaNamespace:
 
 
 @dataclass(frozen=True, slots=True)
-class FacilityNamespace:
-    _client: KexClient
+class FacilityService:
+    _client: KrexClient
 
     def tollgate_info(self, **params: Any) -> Page[dict[str, Any]]:
         return self._client._page_go(
@@ -500,8 +632,8 @@ class FacilityNamespace:
 
 
 @dataclass(frozen=True, slots=True)
-class AdminNamespace:
-    _client: KexClient
+class AdminService:
+    _client: KrexClient
 
     def procurement_contracts(self, **params: Any) -> Page[dict[str, Any]]:
         return self._client._page_go(
@@ -512,8 +644,8 @@ class AdminNamespace:
 
 
 @dataclass(frozen=True, slots=True)
-class ReferenceNamespace:
-    _client: KexClient
+class ReferenceService:
+    _client: KrexClient
 
     def api_catalog(
         self,
@@ -548,7 +680,7 @@ def _parse_page(payload: NormalizedPayload, parser: Callable[[dict[str, Any]], T
         try:
             parsed.append(parser(row))
         except (KeyError, TypeError, ValueError) as exc:
-            raise KexParseError(f"failed to parse response record: {exc}", response=row) from exc
+            raise KrexParseError(f"failed to parse response record: {exc}", response=row) from exc
     return Page(
         items=tuple(parsed),
         page_no=payload.page_no,
@@ -760,7 +892,7 @@ def _clean(params: dict[str, Any]) -> dict[str, Any]:
 
 def _require(value: str | None, field: str) -> None:
     if not value:
-        raise KexInvalidParameterError(f"{field} must not be empty")
+        raise KrexInvalidParameterError(f"{field} must not be empty")
 
 
 def _as_kst(value: datetime) -> datetime:

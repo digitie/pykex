@@ -43,7 +43,7 @@ The public package import name is `krex`; the distribution name is
   the uncertainty instead of pretending the schema is stable.
 - When `pykma`, `pyopinet`, or another sibling library already contains a
   working implementation for the same provider endpoint, port the tested
-  behavior into the existing `KexClient` namespace. Avoid a new standalone
+  behavior into the existing `KrexClient` namespace. Avoid a new standalone
   wrapper/client unless the provider, authentication model, or response shape
   truly needs a separate abstraction. This direct-port preference may be more
   important than keeping the patch to the smallest possible local edit.
@@ -52,8 +52,8 @@ The public package import name is `krex`; the distribution name is
 
 - `KEX_EX_API_KEY`: `data.ex.co.kr` key.
 - `KEX_GO_API_KEY`: `data.go.kr` key. Prefer the decoded key when using
-  `requests` query params.
-- `KexClient()` falls back to the nearest local `.env` when environment
+  `httpx` query params.
+- `KrexClient()` falls back to the nearest local `.env` when environment
   variables are absent, and normalizes copy-paste whitespace out of keys.
 - If a user pastes a key into chat or a file, tell them to rotate it and remove
   the key from the working tree.
@@ -93,7 +93,7 @@ Never rely on HTTP status alone. Inspect body-level result codes.
 - Convert API dates only at the model boundary.
 - Convert numeric metrics (`speed`, `tollFee`, `trafficVol`) to `float` or `int`.
 - Convert Y/N fields to `bool | None`.
-- Keep public models based on `KexModel` so external callers can rely on
+- Keep public models based on `KrexModel` so external callers can rely on
   `model_dump()`, `model_validate()`, and `model_json_schema()`.
 - Expose standard WGS84 positions as `kraddr.base.PlaceCoordinate(lat, lon)`. Keep legacy
   `lat`/`lon` and `x`/`y` fields when already public, but prefer `coordinate`
@@ -140,7 +140,7 @@ Update documentation in the same change:
 - Do not add endpoint paths from guesses without documenting that they are unverified.
 - Do not make tests depend on current public portal data.
 - Do not add Streamlit or debug UI dependencies to this library. UI projects
-  should import the wheel or editable install and use `KexClient.debug_call()`.
+  should import the wheel or editable install and use `KrexClient.debug_call()`.
 - Do not generate one pytest file per saved API case. Save JSON under
   `tests/fixtures/` and replay it through `tests/test_generated_fixtures.py`.
 - Do not commit fixture files until API keys, Authorization headers, and token
@@ -154,7 +154,7 @@ Update documentation in the same change:
 - Do not assume `data.ex.co.kr` always uses `list`; real responses can use an
   endpoint-named top-level array such as `trafficIc`.
 - Do not create a second wrapper layer for a provider endpoint that already fits
-  the existing `KexClient` namespace; port the sibling-library parser/model
+  the existing `KrexClient` namespace; port the sibling-library parser/model
   behavior directly and document any intentional differences.
 - Do not use `payload.get("count") or ...` for counts. Real empty responses use
   `count=0`, and that must stay `0`.

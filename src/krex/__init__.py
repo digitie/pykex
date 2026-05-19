@@ -2,8 +2,8 @@
 
 from kraddr.base import Address, PlaceCoordinate
 
-from .catalog import get_api_catalog, get_api_catalog_item
-from .client import KexClient
+from .catalog import api_catalog, api_catalog_item, get_api_catalog, get_api_catalog_item
+from .client import AsyncKrexClient, KrexClient
 from .codes import (
     CarType,
     CongestionLevel,
@@ -11,33 +11,33 @@ from .codes import (
     Direction,
     DiscountType,
     IOType,
-    KexCode,
+    KrexCode,
     RoadOperator,
     TCSType,
     TimeUnit,
 )
 from .debug import DebugRun, jsonable, redact_sensitive, save_fixture
 from .exceptions import (
-    KexAuthError,
-    KexBadRequestError,
-    KexConfigError,
-    KexConnectionError,
-    KexError,
-    KexInvalidParameterError,
-    KexMissingParameterError,
-    KexNetworkError,
-    KexNotFoundError,
-    KexParseError,
-    KexQuotaExceededError,
-    KexServerError,
-    KexServiceUnavailableError,
-    KexTimeoutError,
+    KrexAuthError,
+    KrexBadRequestError,
+    KrexConfigError,
+    KrexConnectionError,
+    KrexError,
+    KrexInvalidParameterError,
+    KrexMissingParameterError,
+    KrexNetworkError,
+    KrexNotFoundError,
+    KrexParseError,
+    KrexQuotaExceededError,
+    KrexServerError,
+    KrexServiceUnavailableError,
+    KrexTimeoutError,
 )
 from .models import (
     ApiCatalogItem,
     FoodPrice,
     Incident,
-    KexModel,
+    KrexModel,
     Page,
     RawCoordinate,
     RestArea,
@@ -51,8 +51,13 @@ from .models import (
     TrafficFlow,
 )
 
+__version__ = "0.1.0"
+PROVIDER_NAME = "python-krex-api"
+
 __all__ = [
+    "PROVIDER_NAME",
     "Address",
+    "AsyncKrexClient",
     "ApiCatalogItem",
     "CarType",
     "CongestionLevel",
@@ -63,23 +68,23 @@ __all__ = [
     "FoodPrice",
     "IOType",
     "Incident",
-    "KexCode",
-    "KexAuthError",
-    "KexBadRequestError",
-    "KexClient",
-    "KexConfigError",
-    "KexConnectionError",
-    "KexError",
-    "KexInvalidParameterError",
-    "KexMissingParameterError",
-    "KexModel",
-    "KexNetworkError",
-    "KexNotFoundError",
-    "KexParseError",
-    "KexQuotaExceededError",
-    "KexServerError",
-    "KexServiceUnavailableError",
-    "KexTimeoutError",
+    "KrexCode",
+    "KrexAuthError",
+    "KrexBadRequestError",
+    "KrexClient",
+    "KrexConfigError",
+    "KrexConnectionError",
+    "KrexError",
+    "KrexInvalidParameterError",
+    "KrexMissingParameterError",
+    "KrexModel",
+    "KrexNetworkError",
+    "KrexNotFoundError",
+    "KrexParseError",
+    "KrexQuotaExceededError",
+    "KrexServerError",
+    "KrexServiceUnavailableError",
+    "KrexTimeoutError",
     "Page",
     "PlaceCoordinate",
     "RawCoordinate",
@@ -95,9 +100,12 @@ __all__ = [
     "Tollgate",
     "TrafficByIc",
     "TrafficFlow",
+    "api_catalog",
+    "api_catalog_item",
     "get_api_catalog",
     "get_api_catalog_item",
     "jsonable",
     "redact_sensitive",
     "save_fixture",
+    "__version__",
 ]

@@ -26,7 +26,7 @@ try:
 except ModuleNotFoundError as exc:  # pragma: no cover - 선택 실행 도구
     raise SystemExit('Streamlit UI를 쓰려면 `pip install -e ".[debug-ui]"`를 실행하세요.') from exc
 
-from krex import ApiCatalogItem, KexClient, get_api_catalog, get_api_catalog_item, jsonable
+from krex import ApiCatalogItem, KrexClient, get_api_catalog, get_api_catalog_item, jsonable
 from krex._env import load_local_env
 from krex._http import normalize_api_key
 
@@ -291,7 +291,7 @@ def _parameter_specs(selected: ApiCatalogItem) -> tuple[ParameterSpec, ...]:
 
 
 def _resolve_client_method(function: str) -> Any | None:
-    client = KexClient(ex_api_key="unused", go_api_key="unused")
+    client = KrexClient(ex_api_key="unused", go_api_key="unused")
     parts = function.split(".")
     if len(parts) != 2:
         return None
@@ -343,15 +343,15 @@ def _client_for_run(
     *,
     environment: str,
     timeout: float,
-) -> KexClient:
+) -> KrexClient:
     if environment == "env":
-        return KexClient(timeout=timeout, retry_backoff=0)
+        return KrexClient(timeout=timeout, retry_backoff=0)
     normalized = normalize_api_key(api_key)
     if selected.provider == "data.ex.co.kr":
-        return KexClient(ex_api_key=normalized, timeout=timeout, retry_backoff=0)
+        return KrexClient(ex_api_key=normalized, timeout=timeout, retry_backoff=0)
     if selected.provider == "data.go.kr":
-        return KexClient(go_api_key=normalized, timeout=timeout, retry_backoff=0)
-    return KexClient(timeout=timeout, retry_backoff=0)
+        return KrexClient(go_api_key=normalized, timeout=timeout, retry_backoff=0)
+    return KrexClient(timeout=timeout, retry_backoff=0)
 
 
 def _pydantic_model_tab(selected: ApiCatalogItem) -> None:

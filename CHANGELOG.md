@@ -8,7 +8,7 @@ Initial package scaffold and first implementation pass.
 
 ### Added
 
-- `KexClient` with `traffic`, `tollfee`, `restarea`, `facility`, `admin`, and
+- `KrexClient` with `traffic`, `tollfee`, `restarea`, `facility`, `admin`, and
   `reference` namespaces.
 - `data.ex.co.kr` and `data.go.kr` HTTP helpers with retry handling and
   provider error-code mapping.
@@ -42,14 +42,14 @@ Initial package scaffold and first implementation pass.
 ### Added
 
 - Live `data.ex.co.kr` tests gated by `KEX_LIVE=1` and local `KEX_EX_API_KEY`.
-- `KexCode` enum base with `values()`, `labels()`, `choices()`, and
+- `KrexCode` enum base with `values()`, `labels()`, `choices()`, and
   `from_label()` helpers for external forms and validators.
 - `restarea.disabled_facility()` and `restarea.bus_transit()` raw wrappers.
 - `API_COVERAGE.md` to track documented, implemented, typed, raw, and
   live-verified API status.
 - `CoordinateSystem`, `kraddr.base.PlaceCoordinate`, and `RawCoordinate` public
   coordinate types.
-- `kraddr.base.Address` public address type on rest-area address models. KEX
+- `kraddr.base.Address` public address type on rest-area address models. Krex
   address strings populate the `Address` display value and region names, while
   provider legal-dong codes are preserved when present.
 - `Page` sequence-like helpers: iteration, `len(page)`, truthiness, `first`,
@@ -64,15 +64,15 @@ Initial package scaffold and first implementation pass.
 - Agent workflow notes for the Windows `rg.exe` access-denied fallback and
   explicit UTF-8 PowerShell reads.
 - `restarea.route_facilities()`, `restarea.fuel_prices()`, and
-  `restarea.convenience_facilities()` for KEX 휴게소 master 후보, 휴게소
+  `restarea.convenience_facilities()` for Krex 휴게소 master 후보, 휴게소
   주유소 가격, 노선별 편의시설 조회.
 - `RestAreaRouteFacility` and `RestAreaFuelPrice` Pydantic models.
 
 ### Fixed
 
-- `KexHttp` now creates a real requests session when `session=None` is passed
-  explicitly through `KexClient`.
-- API keys are hidden from `KexHttp` repr output.
+- `KrexHttp` now creates a real httpx client when `session=None` is passed
+  explicitly through `KrexClient`.
+- API keys are hidden from `KrexHttp` repr output.
 - `data.ex.co.kr` default base URL now uses HTTPS.
 - `data.ex.co.kr` responses with endpoint-named top-level arrays, such as
   `trafficIc`, are normalized.
@@ -81,6 +81,6 @@ Initial package scaffold and first implementation pass.
 - Empty successful `data.ex.co.kr` responses preserve `count=0` as
   `Page.total_count == 0`.
 - Conversion helpers now accept common unit-suffixed numeric values such as
-  `1,994원` and O/X boolean flags observed in KEX rest-area APIs.
+  `1,994원` and O/X boolean flags observed in Krex rest-area APIs.
 - Rest-area route facility parsing now tolerates real records where
   `serviceAreaName` is empty while code and facility metadata are present.

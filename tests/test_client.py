@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -8,15 +9,16 @@ import pytest
 
 from krex import (
     Address,
+    AsyncKrexClient,
     CarType,
     CongestionLevel,
     CoordinateSystem,
     Direction,
-    KexAuthError,
-    KexClient,
-    KexInvalidParameterError,
-    KexNotFoundError,
-    KexParseError,
+    KrexAuthError,
+    KrexClient,
+    KrexInvalidParameterError,
+    KrexNotFoundError,
+    KrexParseError,
     PlaceCoordinate,
     RestAreaWeather,
     RoadOperator,
@@ -81,7 +83,7 @@ def test_client_loads_local_dotenv_keys_by_default(
         encoding="utf-8",
     )
 
-    client = KexClient(retry_backoff=0, session=FakeSession(ex_payload([])))
+    client = KrexClient(retry_backoff=0, session=FakeSession(ex_payload([])))
 
     assert client.ex_api_key == "exkey"
     assert client.go_api_key == "gokey"
@@ -90,9 +92,20 @@ def test_client_loads_local_dotenv_keys_by_default(
 def test_explicit_client_keys_are_normalized_before_env_fallback(tmp_path: Path) -> None:
     (tmp_path / ".env").write_text("KEX_EX_API_KEY=env-key\n", encoding="utf-8")
 
-    client = KexClient(ex_api_key=" pasted \r\n key ", session=FakeSession(ex_payload([])))
+    client = KrexClient(ex_api_key=" pasted \r\n key ", session=FakeSession(ex_payload([])))
 
     assert client.ex_api_key == "pastedkey"
+
+
+def test_aio_client_matches_sync_service_shape() -> None:
+    session = FakeSession(ex_payload([{"conzoneId": "0010CZE010", "speed": "87.5"}]))
+    client = KrexClient.aio(ex_api_key="ex-key", retry_backoff=0, session=session)
+
+    page = asyncio.run(client.traffic.flow(route_no="0010"))
+
+    assert isinstance(client, AsyncKrexClient)
+    assert page.items[0].conzone_id == "0010CZE010"
+    assert session.last_url.endswith("/openapi/trafficapi/realFlow")
 
 
 def rest_weather_row(**overrides: Any) -> dict[str, Any]:
@@ -143,7 +156,7 @@ def test_traffic_by_ic_builds_query_and_parses_types() -> None:
             ]
         )
     )
-    client = KexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
 
     page = client.traffic.by_ic(
         ex_div_code=RoadOperator.KEC,
@@ -184,7 +197,7 @@ def test_traffic_flow_accepts_single_dict_response() -> None:
             }
         )
     )
-    client = KexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
 
     page = client.traffic.flow(route_no="0010", direction=Direction.UP)
 
@@ -217,7 +230,7 @@ def test_tollfee_between_tollgates_parses_money_and_distance() -> None:
             ]
         )
     )
-    client = KexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
 
     page = client.tollfee.between_tollgates(
         start_unit_code="101",
@@ -246,7 +259,7 @@ def test_tollgate_list_preserves_code_strings() -> None:
             ]
         )
     )
-    client = KexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
 
     tollgate = client.tollfee.tollgate_list().items[0]
 
@@ -278,7 +291,7 @@ def test_restarea_standard_data_uses_go_key_and_parses_bool() -> None:
             ]
         )
     )
-    client = KexClient(go_api_key="go-key", retry_backoff=0, session=session)
+    client = KrexClient(go_api_key="go-key", retry_backoff=0, session=session)
 
     rest_area = client.restarea.list_all(route_name="경부고속도로").items[0]
 
@@ -297,7 +310,7 @@ def test_restarea_standard_data_uses_go_key_and_parses_bool() -> None:
 
 def test_restarea_weather_builds_query_and_parses_typed_rows() -> None:
     session = FakeSession(ex_payload([rest_weather_row()]))
-    client = KexClient(ex_api_key="road-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="road-key", retry_backoff=0, session=session)
 
     page = client.restarea.weather(sdate="20210507", std_hour=12)
 
@@ -339,7 +352,7 @@ def test_restarea_weather_accepts_single_object_and_missing_sentinel() -> None:
     session = FakeSession(
         ex_payload(rest_weather_row(xValue="-99.000000", yValue="-99.000000"))
     )
-    client = KexClient(ex_api_key="road-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="road-key", retry_backoff=0, session=session)
 
     item = client.restarea.weather(sdate="20210507", std_hour="12").items[0]
 
@@ -351,7 +364,7 @@ def test_restarea_weather_accepts_single_object_and_missing_sentinel() -> None:
 
 def test_restarea_latest_weather_looks_back_until_non_empty() -> None:
     session = FakeSession([ex_payload([]), ex_payload([rest_weather_row(stdHour="11")])])
-    client = KexClient(ex_api_key="road-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="road-key", retry_backoff=0, session=session)
 
     page = client.restarea.latest_weather(
         when=datetime(2021, 5, 7, 12, 30),
@@ -364,7 +377,7 @@ def test_restarea_latest_weather_looks_back_until_non_empty() -> None:
 
 
 def test_restarea_weather_validates_date_and_hour() -> None:
-    client = KexClient(ex_api_key="road-key", retry_backoff=0, session=FakeSession(ex_payload([])))
+    client = KrexClient(ex_api_key="road-key", retry_backoff=0, session=FakeSession(ex_payload([])))
 
     with pytest.raises(ValueError):
         client.restarea.weather(sdate="2021-05-07", std_hour=12)
@@ -375,23 +388,23 @@ def test_restarea_weather_validates_date_and_hour() -> None:
 
 
 def test_restarea_weather_error_code_and_shape_errors() -> None:
-    auth_client = KexClient(
+    auth_client = KrexClient(
         ex_api_key="bad-key",
         retry_backoff=0,
         session=FakeSession(
             {"code": "INVALID_KEY", "message": "인증키가 유효하지 않습니다.", "list": None}
         ),
     )
-    shape_client = KexClient(
+    shape_client = KrexClient(
         ex_api_key="road-key",
         retry_backoff=0,
         session=FakeSession({"code": "SUCCESS", "list": "bad"}),
     )
 
-    with pytest.raises(KexAuthError) as raised:
+    with pytest.raises(KrexAuthError) as raised:
         auth_client.restarea.weather(sdate="20210507", std_hour=12)
     assert "bad-key" not in str(raised.value)
-    with pytest.raises(KexParseError):
+    with pytest.raises(KrexParseError):
         shape_client.restarea.weather(sdate="20210507", std_hour=12)
 
 
@@ -416,7 +429,7 @@ def test_restarea_route_facilities_parse_service_area_master_fields() -> None:
             }
         )
     )
-    client = KexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
 
     facility = client.restarea.route_facilities(
         route_code="0010",
@@ -465,7 +478,7 @@ def test_restarea_fuel_prices_parse_money_and_lpg_flag() -> None:
             ]
         )
     )
-    client = KexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
 
     fuel = client.restarea.fuel_prices(oil_company="EX-OIL").items[0]
 
@@ -487,7 +500,7 @@ def test_restarea_fuel_prices_parse_money_and_lpg_flag() -> None:
 
 def test_restarea_convenience_facilities_stays_raw_until_schema_is_verified() -> None:
     session = FakeSession(ex_payload([{"serviceAreaCode": "A0001", "unknownFacility": "Y"}]))
-    client = KexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
 
     page = client.restarea.convenience_facilities(service_area_name="죽전휴게소")
 
@@ -509,7 +522,7 @@ def test_food_price_parses_recommend_flag() -> None:
             }
         )
     )
-    client = KexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
 
     food = client.restarea.food_price().items[0]
 
@@ -520,7 +533,7 @@ def test_food_price_parses_recommend_flag() -> None:
 
 def test_no_data_can_return_empty_page_when_configured() -> None:
     session = FakeSession({"code": "NO_DATA", "message": "empty"})
-    client = KexClient(ex_api_key="ex-key", retry_backoff=0, strict_no_data=False, session=session)
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, strict_no_data=False, session=session)
 
     page = client.traffic.flow(route_no="9999")
 
@@ -529,19 +542,19 @@ def test_no_data_can_return_empty_page_when_configured() -> None:
 
 def test_no_data_raises_by_default() -> None:
     session = FakeSession({"code": "NO_DATA", "message": "empty"})
-    client = KexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
 
-    with pytest.raises(KexNotFoundError):
+    with pytest.raises(KrexNotFoundError):
         client.traffic.flow(route_no="9999")
 
 
 def test_invalid_public_params_fail_before_http_call() -> None:
     session = FakeSession(ex_payload([]))
-    client = KexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
 
-    with pytest.raises(KexInvalidParameterError):
+    with pytest.raises(KrexInvalidParameterError):
         client.tollfee.between_tollgates(start_unit_code="", end_unit_code="105", car_type="1")
-    with pytest.raises(KexInvalidParameterError):
+    with pytest.raises(KrexInvalidParameterError):
         client.traffic.by_ic(
             ex_div_code="00",
             unit_code="101",
@@ -555,14 +568,14 @@ def test_invalid_public_params_fail_before_http_call() -> None:
 
 def test_malformed_model_record_raises_parse_error() -> None:
     session = FakeSession(ex_payload([{"unitName": "missing unit code"}]))
-    client = KexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
 
-    with pytest.raises(KexParseError):
+    with pytest.raises(KrexParseError):
         client.tollfee.tollgate_list()
 
 
 def test_reference_codes_are_local_and_preserve_leading_zero_routes() -> None:
-    client = KexClient(ex_api_key="unused")
+    client = KrexClient(ex_api_key="unused")
 
     routes = client.reference.routes()
     codes = client.reference.common_codes()
@@ -573,7 +586,7 @@ def test_reference_codes_are_local_and_preserve_leading_zero_routes() -> None:
 
 def test_raw_and_generic_namespaces_build_expected_urls() -> None:
     session = FakeSession(ex_payload([{"any": "value"}]))
-    client = KexClient(ex_api_key="ex-key", go_api_key="go-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="ex-key", go_api_key="go-key", retry_backoff=0, session=session)
 
     assert client.traffic.by_route(route_no="0010", time_unit="1").items[0] == {"any": "value"}
     assert session.last_url.endswith("/openapi/trafficapi/trafficRoute")
@@ -606,7 +619,7 @@ def test_raw_and_generic_namespaces_build_expected_urls() -> None:
 
 def test_data_go_generic_namespaces_build_expected_urls() -> None:
     session = FakeSession(go_payload([{"any": "value"}]))
-    client = KexClient(go_api_key="go-key", retry_backoff=0, session=session)
+    client = KrexClient(go_api_key="go-key", retry_backoff=0, session=session)
 
     client.facility.tollgate_info()
     assert session.last_url.endswith("/TollgateInfoService/getTollgateInfo")

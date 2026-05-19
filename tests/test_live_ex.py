@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from krex import CarType, KexClient, RoadOperator, TCSType, TimeUnit
+from krex import CarType, KrexClient, RoadOperator, TCSType, TimeUnit
 
 
 def _load_local_env() -> None:
@@ -19,13 +19,13 @@ def _load_local_env() -> None:
         os.environ.setdefault(key.strip(), value.strip())
 
 
-def _live_client() -> KexClient:
+def _live_client() -> KrexClient:
     _load_local_env()
     if os.getenv("KEX_LIVE") != "1":
         pytest.skip("set KEX_LIVE=1 to run live data.ex.co.kr tests")
     if not os.getenv("KEX_EX_API_KEY"):
         pytest.skip("KEX_EX_API_KEY is not set")
-    return KexClient.from_env(timeout=10, max_retries=1, retry_backoff=0)
+    return KrexClient.from_env(timeout=10, max_retries=1, retry_backoff=0)
 
 
 @pytest.mark.live

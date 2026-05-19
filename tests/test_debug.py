@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
 import pytest
 
-from krex import DebugRun, KexClient, jsonable, redact_sensitive, save_fixture
+from krex import DebugRun, KrexClient, jsonable, redact_sensitive, save_fixture
 
 
 class FakeResponse:
@@ -49,7 +50,7 @@ def test_debug_call_returns_request_response_and_typed_result() -> None:
             ]
         )
     )
-    client = KexClient(ex_api_key="secret-key", retry_backoff=0, session=session)
+    client = KrexClient(ex_api_key="secret-key", retry_backoff=0, session=session)
 
     run = client.debug_call("traffic.flow", route_no="0010")
 
@@ -66,8 +67,21 @@ def test_debug_call_returns_request_response_and_typed_result() -> None:
     assert any(line.startswith("service key URL:") for line in run.trace)
 
 
+def test_async_debug_call_returns_result() -> None:
+    client = KrexClient(
+        ex_api_key="secret-key",
+        retry_backoff=0,
+        session=FakeSession(ex_payload([{"conzoneId": "A", "speed": "1"}])),
+    )
+
+    run = asyncio.run(client.adebug_call("traffic.flow", route_no="0010"))
+
+    assert run.error is None
+    assert run.request["query"]["key"] == "secr..."
+
+
 def test_debug_call_keeps_validation_error_in_result() -> None:
-    client = KexClient(
+    client = KrexClient(
         ex_api_key="secret-key",
         retry_backoff=0,
         session=FakeSession(ex_payload([])),
@@ -76,9 +90,9 @@ def test_debug_call_keeps_validation_error_in_result() -> None:
     run = client.debug_call("traffic.flow", direction="bad")
 
     assert run.error is not None
-    assert run.error["type"] == "KexInvalidParameterError"
+    assert run.error["type"] == "KrexInvalidParameterError"
     assert run.request == {}
-    assert "KexInvalidParameterError" in run.trace[-1]
+    assert "KrexInvalidParameterError" in run.trace[-1]
 
 
 def test_save_fixture_redacts_sensitive_values_and_prevents_overwrite(tmp_path: Any) -> None:

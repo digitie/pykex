@@ -5,12 +5,12 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import TypeVar
 
-from .exceptions import KexInvalidParameterError
+from .exceptions import KrexInvalidParameterError
 
-E = TypeVar("E", bound="KexCode")
+E = TypeVar("E", bound="KrexCode")
 
 
-class KexCode(StrEnum):
+class KrexCode(StrEnum):
     """안정적인 KEX API 코드값의 공통 enum 기반 클래스.
 
     외부 프로그램은 `values()`, `labels()`, `choices()`를 사용해 코드표를
@@ -50,10 +50,10 @@ def coerce_code(enum_type: type[E], value: E | str, field: str) -> str:
         return enum_type(value).value
     except ValueError as exc:
         allowed = ", ".join(item.value for item in enum_type)
-        raise KexInvalidParameterError(f"{field} must be one of: {allowed}") from exc
+        raise KrexInvalidParameterError(f"{field} must be one of: {allowed}") from exc
 
 
-class CoordinateSystem(KexCode):
+class CoordinateSystem(KrexCode):
     """KEX 관련 API에서 노출되는 좌표계."""
 
     WGS84 = "WGS84"
@@ -65,7 +65,7 @@ class CoordinateSystem(KexCode):
         return _COORDINATE_SYSTEM_LABELS
 
 
-class CarType(KexCode):
+class CarType(KrexCode):
     LIGHT = "1"
     MEDIUM = "2"
     LARGE_3AXLE = "3"
@@ -78,7 +78,7 @@ class CarType(KexCode):
         return _CAR_TYPE_LABELS
 
 
-class TCSType(KexCode):
+class TCSType(KrexCode):
     ALL = "0"
     TCS = "1"
     HIPASS = "2"
@@ -88,7 +88,7 @@ class TCSType(KexCode):
         return _TCS_TYPE_LABELS
 
 
-class RoadOperator(KexCode):
+class RoadOperator(KrexCode):
     KEC = "00"
     PRIV_INCHEON_AIRPORT = "01"
     PRIV_CHEONAN_NONSAN = "02"
@@ -101,7 +101,7 @@ class RoadOperator(KexCode):
         return _ROAD_OPERATOR_LABELS
 
 
-class IOType(KexCode):
+class IOType(KrexCode):
     IN = "0"
     OUT = "1"
 
@@ -110,7 +110,7 @@ class IOType(KexCode):
         return _IO_TYPE_LABELS
 
 
-class TimeUnit(KexCode):
+class TimeUnit(KrexCode):
     HOUR = "1"
     MIN_15 = "2"
 
@@ -119,7 +119,7 @@ class TimeUnit(KexCode):
         return _TIME_UNIT_LABELS
 
 
-class Direction(KexCode):
+class Direction(KrexCode):
     UP = "0"
     DOWN = "1"
     EAST = "E"
@@ -132,7 +132,7 @@ class Direction(KexCode):
         return _DIRECTION_LABELS
 
 
-class CongestionLevel(KexCode):
+class CongestionLevel(KrexCode):
     SMOOTH = "1"
     SLOW = "2"
     DELAY = "3"
@@ -143,7 +143,7 @@ class CongestionLevel(KexCode):
         return _CONGESTION_LABELS
 
 
-class DiscountType(KexCode):
+class DiscountType(KrexCode):
     NONE = "0"
     NIGHT = "1"
     RUSH_DISCOUNT = "2"
@@ -204,7 +204,7 @@ def _from_label(enum_type: type[E], labels: dict[str, str], label: str) -> E:
     for code, item_label in labels.items():
         if normalized in {code, item_label}:
             return enum_type(code)
-    raise KexInvalidParameterError(f"unknown {enum_type.__name__} label: {label!r}")
+    raise KrexInvalidParameterError(f"unknown {enum_type.__name__} label: {label!r}")
 
 
 ROUTE_NAMES: dict[str, str] = {

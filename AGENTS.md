@@ -6,7 +6,7 @@ This repository follows the same working shape as `pykma` and `pyopinet`.
 
 - Do not commit API keys. Use `KEX_EX_API_KEY` for `data.ex.co.kr` and
   `KEX_GO_API_KEY` for `data.go.kr`.
-- `KexClient()` may read the nearest local `.env` when those environment
+- `KrexClient()` may read the nearest local `.env` when those environment
   variables are absent; never rely on that in committed tests except through
   temporary `.env` fixtures.
 - Unit tests must not call the network. Use fake sessions or fixtures.
@@ -44,11 +44,11 @@ This repository follows the same working shape as `pykma` and `pyopinet`.
 - Always inspect body-level API result codes. `data.go.kr` commonly returns
   HTTP 200 for application errors.
 - Keep API keys out of repr strings, failure messages, commits, and docs.
-- Keep debug UI dependencies out of this library. Use `KexClient.debug_call()`
+- Keep debug UI dependencies out of this library. Use `KrexClient.debug_call()`
   and JSON fixtures for replayable UI-discovered cases.
 - When a sibling library such as `pykma` or `pyopinet` already has a verified
   implementation for the same provider endpoint, port that behavior directly
-  into the existing `KexClient` namespace instead of adding a separate wrapper
+  into the existing `KrexClient` namespace instead of adding a separate wrapper
   layer. This preference can outweigh a narrowly minimal diff when it prevents
   duplicated abstractions and preserves proven parsing rules.
 

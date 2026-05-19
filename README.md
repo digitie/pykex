@@ -13,7 +13,7 @@
 - **네임스페이스형 클라이언트**: `client.traffic.flow()`, `client.tollfee.between_tollgates()`처럼 문서의 API 범주와 같은 구조로 호출합니다.
 - **두 포털 동시 지원**: `data.ex.co.kr` 키(`KEX_EX_API_KEY`)와 `data.go.kr` 키(`KEX_GO_API_KEY`)를 분리해 사용합니다.
 - **로컬 `.env` 기본 로딩**: 환경변수가 없으면 현재 작업 디렉터리부터 부모 디렉터리의 `.env`를 찾아 키를 읽고, 복붙 과정에서 섞인 공백 문자를 제거합니다.
-- **API 카탈로그**: 구현된 API의 함수명, 데이터셋명, 포털, 엔드포인트, 서비스키 발급/활용신청 링크를 `get_api_catalog()`로 조회할 수 있습니다.
+- **API 카탈로그**: 구현된 API의 함수명, 데이터셋명, 포털, 엔드포인트, 서비스키 발급/활용신청 링크를 `api_catalog()` 또는 `get_api_catalog()`로 조회할 수 있습니다.
 - **Python 타입 변환**: 날짜, 숫자, Y/N 플래그, 코드값을 `date`, `int`, `float`, `bool`, `StrEnum`으로 변환합니다.
 - **Pydantic 응답 모델**: 공개 모델은 불변 `BaseModel` 기반이라 `model_dump()`, `model_validate()`, `model_json_schema()`를 외부 프로그램에서 바로 사용할 수 있습니다.
 - **명확한 예외 계층**: 인증, 한도 초과, 파라미터 오류, 데이터 없음, 서버 오류, 파싱 오류, 네트워크 오류를 구분합니다.
@@ -38,7 +38,7 @@ $env:KEX_EX_API_KEY="data.ex.co.kr에서_발급받은_키"
 $env:KEX_GO_API_KEY="data.go.kr에서_발급받은_decoding_키"
 ```
 
-또는 프로젝트 루트의 `.env`에 저장해도 됩니다. `KexClient()`와 `KexClient.from_env()`는 명시 인자가 없으면 환경변수를 먼저 보고, 없으면 가장 가까운 `.env`를 자동으로 읽습니다.
+또는 프로젝트 루트의 `.env`에 저장해도 됩니다. `KrexClient()`와 `KrexClient.from_env()`는 명시 인자가 없으면 환경변수를 먼저 보고, 없으면 가장 가까운 `.env`를 자동으로 읽습니다.
 
 ```dotenv
 KEX_EX_API_KEY=data.ex.co.kr에서_발급받은_키
@@ -47,7 +47,7 @@ KEX_GO_API_KEY=data.go.kr에서_발급받은_decoding_키
 
 웹 화면에서 키를 복사하며 줄바꿈, 탭, 앞뒤 공백이 섞여도 호출 전에 제거됩니다.
 
-`requests.get(..., params=...)`로 전달하므로 `data.go.kr` 키는 Decoding 값을 권장합니다.
+`httpx`에서 `params=...`로 전달하므로 `data.go.kr` 키는 Decoding 값을 권장합니다.
 
 ### 2단계: 설치
 
@@ -66,9 +66,9 @@ pip install python-krex-api
 ### 3단계: 사용
 
 ```python
-from krex import CarType, KexClient
+from krex import CarType, KrexClient
 
-client = KexClient.from_env()
+client = KrexClient.from_env()
 
 # 실시간 소통
 flows = client.traffic.flow(route_no="0010")
@@ -98,14 +98,24 @@ if weather.first:
     print(weather.first.unit_name, weather.first.weather, weather.first.temperature)
 ```
 
+비동기 코드에서는 `python-krheritage-api`와 같은 `aio()` 진입점을 사용할 수 있습니다.
+
+```python
+from krex import KrexClient
+
+async with KrexClient.aio() as client:
+    flows = await client.traffic.flow(route_no="0010")
+    print(flows.first)
+```
+
 ### 키를 직접 넘기는 방식
 
 환경변수 대신 명시적으로 키를 주입할 수도 있습니다. 테스트나 배치 작업에서는 이 방식이 더 읽기 쉽습니다.
 
 ```python
-from krex import KexClient
+from krex import KrexClient
 
-client = KexClient(
+client = KrexClient(
     ex_api_key="data.ex.co.kr 키",
     go_api_key="data.go.kr Decoding 키",
     timeout=5.0,
@@ -182,7 +192,7 @@ pip install -e ".[debug-ui]"
 python -m streamlit run examples/streamlit_debug_ui.py --server.port 8504
 ```
 
-예제 UI는 API 선택 시 데이터셋명과 서비스키 받기 링크를 보여주고, 실행 시 `Debug Trace` 탭에서 `DebugRun.catalog`를 함께 표시합니다. 키 입력칸을 비워두면 `KexClient()`와 동일하게 환경변수 또는 로컬 `.env`의 값을 기본으로 사용합니다.
+예제 UI는 API 선택 시 데이터셋명과 서비스키 받기 링크를 보여주고, 실행 시 `Debug Trace` 탭에서 `DebugRun.catalog`를 함께 표시합니다. 키 입력칸을 비워두면 `KrexClient()`와 동일하게 환경변수 또는 로컬 `.env`의 값을 기본으로 사용합니다.
 
 ---
 
@@ -336,13 +346,13 @@ KEX 응답의 주소 문자열만으로는 10자리 법정동코드를 안전하
 실제 포털 호출 없이 fake session을 주입할 수 있습니다.
 
 ```python
-from krex import KexClient
+from krex import KrexClient
 
 class Session:
     def get(self, url, *, params, timeout):
         ...
 
-client = KexClient(ex_api_key="test-key", session=Session())
+client = KrexClient(ex_api_key="test-key", session=Session())
 ```
 
 새 엔드포인트를 추가할 때는 이 방식으로 쿼리 파라미터와 파싱 결과를 먼저 고정한 뒤, 필요하면 별도의 `@pytest.mark.live` 테스트를 추가합니다.
@@ -352,9 +362,9 @@ client = KexClient(ex_api_key="test-key", session=Session())
 디버그 UI나 임시 확인 도구는 라이브러리를 직접 호출하되, Streamlit 같은 UI 의존성을 이 패키지에 넣지 않습니다. 대신 `debug_call()`로 실행 정보를 모으고 `save_fixture()`로 replay 가능한 JSON fixture를 저장합니다.
 
 ```python
-from krex import KexClient, save_fixture
+from krex import KrexClient, save_fixture
 
-client = KexClient.from_env()
+client = KrexClient.from_env()
 run = client.debug_call("restarea.weather", sdate="20210507", std_hour=12)
 
 print(run.catalog["dataset_name"])       # 한국도로공사_휴게소별 날씨
@@ -397,17 +407,17 @@ python -m pytest -m live -vv
 ## 에러 처리
 
 ```python
-from krex import KexAuthError, KexClient, KexQuotaExceededError, KexServerError
+from krex import KrexAuthError, KrexClient, KrexQuotaExceededError, KrexServerError
 
-client = KexClient.from_env()
+client = KrexClient.from_env()
 
 try:
     client.traffic.flow(route_no="0010")
-except KexAuthError:
+except KrexAuthError:
     print("인증키를 확인하세요.")
-except KexQuotaExceededError:
+except KrexQuotaExceededError:
     print("일일 호출 한도를 초과했습니다.")
-except KexServerError:
+except KrexServerError:
     print("포털 장애 가능성이 있어 재시도 대상입니다.")
 ```
 
@@ -426,7 +436,7 @@ except KexServerError:
 - 외부 표준 좌표 DTO는 `kraddr.base.PlaceCoordinate(lat=..., lon=...)`입니다. GeoJSON/GIS 경계용 `(lon, lat)`은 `point.lonlat` 또는 명시 변환 메서드를 사용하세요.
 - 응답의 `items.item`, `list`, `data`는 단일 `dict` 또는 `list[dict]` 양쪽을 처리합니다.
 - `count=0`은 `None`이 아니라 정수 `0`으로 보존해야 합니다.
-- `NO_DATA`는 기본적으로 `KexNotFoundError`입니다. 빈 결과로 받고 싶으면 `KexClient(strict_no_data=False)`를 사용합니다.
+- `NO_DATA`는 기본적으로 `KrexNotFoundError`입니다. 빈 결과로 받고 싶으면 `KrexClient(strict_no_data=False)`를 사용합니다.
 - 테스트 fixture의 숫자값은 실제 API처럼 문자열로 유지합니다. 그래야 변환 경계가 검증됩니다.
 
 ---
@@ -451,7 +461,7 @@ ruff check .
 
 | 모듈 | 책임 |
 |---|---|
-| `src/krex/client.py` | 사용자용 `KexClient`, 엔드포인트 네임스페이스, 모델 파싱 |
+| `src/krex/client.py` | 사용자용 `KrexClient`, 엔드포인트 네임스페이스, 모델 파싱 |
 | `src/krex/catalog.py` | 구현 API 카탈로그, 데이터셋명, 서비스키 발급/활용신청 링크 |
 | `src/krex/_env.py` | 로컬 `.env` 키 로딩 |
 | `src/krex/_http.py` | HTTP 호출, retry, 포털별 envelope 정규화, 에러 매핑 |

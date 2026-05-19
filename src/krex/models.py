@@ -22,13 +22,13 @@ from .codes import (
 T = TypeVar("T")
 
 
-class KexModel(BaseModel):
+class KrexModel(BaseModel):
     """불변 공개 응답 모델의 공통 기반 클래스."""
 
     model_config = ConfigDict(frozen=True, use_enum_values=False)
 
 
-class Page(KexModel, Generic[T]):
+class Page(KrexModel, Generic[T]):
     items: tuple[T, ...]
     page_no: int | None = None
     num_of_rows: int | None = None
@@ -53,7 +53,7 @@ class Page(KexModel, Generic[T]):
         return not self.items
 
 
-class ApiCatalogItem(KexModel):
+class ApiCatalogItem(KrexModel):
     function: str
     dataset_name: str
     provider: str
@@ -67,13 +67,13 @@ class ApiCatalogItem(KexModel):
     fixture_supported: bool = False
 
 
-class RawCoordinate(KexModel):
+class RawCoordinate(KrexModel):
     x: float
     y: float
     system: CoordinateSystem = CoordinateSystem.UNKNOWN
 
 
-class TrafficByIc(KexModel):
+class TrafficByIc(KrexModel):
     collected_date: date | None
     collected_time: str | None
     unit_code: str
@@ -85,7 +85,7 @@ class TrafficByIc(KexModel):
     raw: dict[str, Any]
 
 
-class TrafficFlow(KexModel):
+class TrafficFlow(KrexModel):
     conzone_id: str | None
     conzone_name: str | None
     route_no: str | None
@@ -98,7 +98,7 @@ class TrafficFlow(KexModel):
     raw: dict[str, Any]
 
 
-class Incident(KexModel):
+class Incident(KrexModel):
     route_no: str | None
     route_name: str | None
     direction: Direction | None
@@ -109,7 +109,7 @@ class Incident(KexModel):
     raw: dict[str, Any]
 
 
-class TollFee(KexModel):
+class TollFee(KrexModel):
     start_unit_code: str
     start_unit_name: str | None
     end_unit_code: str
@@ -125,7 +125,7 @@ class TollFee(KexModel):
     raw: dict[str, Any]
 
 
-class Tollgate(KexModel):
+class Tollgate(KrexModel):
     unit_code: str
     unit_name: str
     route_no: str | None
@@ -140,7 +140,7 @@ class Tollgate(KexModel):
     raw_coordinate: RawCoordinate | None = None
 
 
-class RestArea(KexModel):
+class RestArea(KrexModel):
     name: str
     route_name: str | None
     direction: str | None
@@ -155,7 +155,7 @@ class RestArea(KexModel):
     coordinate: PlaceCoordinate | None = None
 
 
-class RestAreaRouteFacility(KexModel):
+class RestAreaRouteFacility(KrexModel):
     route_code: str | None
     service_area_code: str
     service_area_code2: str | None = None
@@ -172,7 +172,7 @@ class RestAreaRouteFacility(KexModel):
     raw: dict[str, Any]
 
 
-class RestAreaFuelPrice(KexModel):
+class RestAreaFuelPrice(KrexModel):
     route_code: str | None
     service_area_code: str
     service_area_code2: str | None = None
@@ -189,7 +189,7 @@ class RestAreaFuelPrice(KexModel):
     raw: dict[str, Any]
 
 
-class RestAreaWeather(KexModel):
+class RestAreaWeather(KrexModel):
     observed_at: datetime
     sdate: str
     std_hour: str
@@ -226,7 +226,7 @@ class RestAreaWeather(KexModel):
         return self.lat
 
 
-class FoodPrice(KexModel):
+class FoodPrice(KrexModel):
     service_area_code: str | None
     service_area_name: str | None
     store_code: str | None
@@ -238,7 +238,7 @@ class FoodPrice(KexModel):
     raw: dict[str, Any]
 
 
-class Route(KexModel):
+class Route(KrexModel):
     route_no: str
     route_name: str
     short_name: str | None = None

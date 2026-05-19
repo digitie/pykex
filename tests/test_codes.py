@@ -2,7 +2,7 @@ import pytest
 
 from krex import CarType, CongestionLevel, CoordinateSystem, Direction, TCSType
 from krex.codes import coerce_code
-from krex.exceptions import KexInvalidParameterError
+from krex.exceptions import KrexInvalidParameterError
 
 
 def test_enum_labels_are_stable() -> None:
@@ -18,7 +18,7 @@ def test_car_type_from_label_accepts_label_or_code() -> None:
 
 
 def test_coerce_code_rejects_unknown_values() -> None:
-    with pytest.raises(KexInvalidParameterError):
+    with pytest.raises(KrexInvalidParameterError):
         coerce_code(CarType, "9", "car_type")
 
 
