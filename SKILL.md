@@ -1,84 +1,67 @@
 ---
 name: python-krex-api
-description: Build, extend, test, or troubleshoot the Python client for Korea Expressway Corporation OpenAPIs exposed through data.ex.co.kr and data.go.kr.
+description: data.ex.co.kr와 data.go.kr로 제공되는 한국도로공사 OpenAPI Python client를 구현, 확장, test, troubleshooting할 때 사용한다.
 ---
 
 # python-krex-api Skill
 
-Use this guide when working on the `python-krex-api` Python library.
+`python-krex-api` Python library에서 작업할 때 이 guide를 사용한다.
 
 ## Scope
 
-This project wraps Korea Expressway Corporation public APIs from:
+이 프로젝트는 다음 한국도로공사 공개 API를 감싼다.
 
-1. `data.ex.co.kr` with `key` and `type=json`
-2. `data.go.kr` / `api.data.go.kr` with `serviceKey` and JSON response options
+1. `data.ex.co.kr`: `key`와 `type=json` 사용
+2. `data.go.kr` / `api.data.go.kr`: `serviceKey`와 JSON 응답 option 사용
 
-The public package import name is `krex`; the distribution name is
-`python-krex-api`.
+공개 package import 이름은 `krex`, distribution 이름은 `python-krex-api`다.
 
-## Repository Rules
+## 문서 언어 정책
 
-- Read `endpoints.md`, `codes.md`, and `error-codes.md` before changing endpoint behavior.
-- Read `API_COVERAGE.md` before claiming an API is supported or live-verified.
-- Keep the implementation shape aligned with `pykma` and `pyopinet`:
-  `src/krex/client.py`, `src/krex/_http.py`, `src/krex/_convert.py`,
-  `src/krex/codes.py`, `src/krex/models.py`, `src/krex/catalog.py`,
-  `src/krex/exceptions.py`, `src/krex/debug.py`.
-- Do not add live network calls to ordinary tests.
-- Do not commit API keys or generated caches.
-- Write file locations in documents as project-root-relative paths, for example
-  `src/krex/client.py`; avoid local absolute paths.
-- Write Python docstrings and explanatory comments in Korean unless preserving
-  provider text, public code identifiers, or protocol literals.
-- In this Windows workspace, `rg.exe` may be present but fail with
-  `Access is denied`. Use PowerShell enumeration as the fallback:
-  `Get-ChildItem -Recurse -File | Select-String -Pattern "..."`.
-- When reading Markdown or other UTF-8 text in PowerShell, pass
-  `-Encoding utf8` to `Get-Content` or `Select-String` to avoid garbled Korean
-  output.
-- Prefer immutable Pydantic models for public return models and `StrEnum` for
-  stable code values.
-- If an endpoint path is uncertain, expose it as `Page[dict]` first and document
-  the uncertainty instead of pretending the schema is stable.
-- When `pykma`, `pyopinet`, or another sibling library already contains a
-  working implementation for the same provider endpoint, port the tested
-  behavior into the existing `KrexClient` namespace. Avoid a new standalone
-  wrapper/client unless the provider, authentication model, or response shape
-  truly needs a separate abstraction. This direct-port preference may be more
-  important than keeping the patch to the smallest possible local edit.
+모든 Markdown/RST 문서는 한글로 작성한다. Provider field, code identifier, 명령어, URL, protocol literal은 그대로 보존할 수 있다.
 
-## API Key Rules
+## Repository rule
 
-- `KEX_EX_API_KEY`: `data.ex.co.kr` key.
-- `DATA_GO_KR_SERVICE_KEY`: `data.go.kr` key. Prefer the decoded key when using
-  `httpx` query params.
-- `KrexClient()` falls back to the nearest local `.env` when environment
-  variables are absent, and normalizes copy-paste whitespace out of keys.
-- If a user pastes a key into chat or a file, tell them to rotate it and remove
-  the key from the working tree.
+- Endpoint 동작 변경 전 `endpoints.md`, `codes.md`, `error-codes.md`를 읽는다.
+- API 지원 또는 live verification을 주장하기 전 `API_COVERAGE.md`를 읽는다.
+- 구현 구조는 `pykma`, `pyopinet`과 맞춘다: `src/krex/client.py`, `_http.py`, `_convert.py`, `codes.py`, `models.py`, `catalog.py`, `exceptions.py`, `debug.py`.
+- 일반 test에 live network call을 넣지 않는다.
+- API key나 generated cache를 commit하지 않는다.
+- 문서 file location은 프로젝트 기준 상대 경로로 쓴다.
+- Python docstring과 설명 주석은 한글로 쓴다.
+- Windows에서 `rg.exe`가 막히면 PowerShell `Get-ChildItem -Recurse -File | Select-String -Pattern "..."`로 전환한다.
+- Markdown/UTF-8 text는 PowerShell에서 `-Encoding utf8`로 읽는다.
+- 공개 반환 model은 immutable Pydantic model, 안정 code는 `StrEnum`을 선호한다.
+- Endpoint path가 불확실하면 stable schema인 척하지 말고 `Page[dict]`로 노출하고 불확실성을 문서화한다.
+- Sibling library에 검증된 구현이 있으면 standalone wrapper를 만들지 말고 기존 `KrexClient` namespace로 port한다.
 
-## URL and Parameter Rules
+## API key rule
+
+- `KEX_EX_API_KEY`: `data.ex.co.kr` key
+- `DATA_GO_KR_SERVICE_KEY`: `data.go.kr` key. `httpx` query params에는 decoded key를 선호한다.
+- `KrexClient()`는 환경 변수가 없을 때 가까운 local `.env`를 fallback으로 읽고 key의 copy-paste whitespace를 정리한다.
+- 사용자가 key를 chat이나 file에 붙여넣으면 rotate하고 working tree에서 제거하도록 안내한다.
+
+## URL과 parameter rule
 
 `data.ex.co.kr`:
 
 - Base URL: `http://data.ex.co.kr`
-- Auth parameter: `key`
+- 인증 parameter: `key`
 - JSON parameter: `type=json`
 - Pagination: `numOfRows`, `pageNo`
-- Common result shape: `{"code": "SUCCESS", "list": [...]}`
+- 흔한 result shape: `{"code": "SUCCESS", "list": [...]}`
 
 `data.go.kr`:
 
-- Auth parameter: `serviceKey`
-- Many service APIs use `_type=json`
-- Some standard data APIs use `type=json`
-- Common result shape:
-  `{"response": {"header": {"resultCode": "00"}, "body": {"items": {"item": [...]}}}}`
+- 인증 parameter: `serviceKey`
+- 많은 service API는 `_type=json`을 사용한다.
+- 일부 standard data API는 `type=json`을 사용한다.
+- 흔한 result shape: `{"response": {"header": {"resultCode": "00"}, "body": {"items": {"item": [...]}}}}`
 
-## Error Mapping
+## Error mapping
 
-Never rely on HTTP status alone. Inspect body-level result codes.
+HTTP status만 믿지 말고 body-level result code를 확인한다.
 
 - Auth: `INVALID_KEY`, `EXPIRED_KEY`, `NO_REGISTERED_KEY`, `20`, `21`, `30`, `31`, `32`, `33`
 - Quota: `EXCEEDED_LIMIT`, `22`, HTTP `429`
@@ -87,88 +70,58 @@ Never rely on HTTP status alone. Inspect body-level result codes.
 - No data: `NO_DATA`, `03`
 - Server/transient: `SYSTEM_ERROR`, `SERVICE_TIMEOUT`, `SERVICE_UNAVAILABLE`, `01`, `02`, `04`, `05`, HTTP `5xx`
 
-## Conversion Rules
+## Conversion rule
 
-- Preserve route, tollgate, office, and code values as strings.
-- Convert API dates only at the model boundary.
-- Convert numeric metrics (`speed`, `tollFee`, `trafficVol`) to `float` or `int`.
-- Convert Y/N fields to `bool | None`.
-- Keep public models based on `KrexModel` so external callers can rely on
-  `model_dump()`, `model_validate()`, and `model_json_schema()`.
-- Expose standard WGS84 positions as `kraddr.base.PlaceCoordinate(lat, lon)`. Keep legacy
-  `lat`/`lon` and `x`/`y` fields when already public, but prefer `coordinate`
-  for new code.
-- Expose address data as `kraddr.base.Address`. Free-form address strings may fill
-  display text and region names, but legal-dong codes must come from provider
-  fields or verified external lookup results such as VWorld boundary data.
-- Preserve ambiguous raw coordinates as `RawCoordinate` with a
-  `CoordinateSystem`.
-- Normalize single-item `dict` and multi-item `list[dict]` to the same internal list shape.
+- Route, tollgate, office, code 값은 문자열로 보존한다.
+- API date는 model boundary에서만 변환한다.
+- `speed`, `tollFee`, `trafficVol` 같은 numeric metric은 `float` 또는 `int`로 변환한다.
+- Y/N field는 `bool | None`으로 변환한다.
+- 공개 model은 `KrexModel` 기반으로 유지해 `model_dump()`, `model_validate()`, `model_json_schema()`를 안정적으로 제공한다.
+- 표준 WGS84 위치는 `kraddr.base.PlaceCoordinate(lat, lon)`으로 노출한다.
+- 주소 데이터는 `kraddr.base.Address`로 노출한다. 법정동 코드는 provider field나 검증된 lookup 결과에서만 채운다.
+- 모호한 raw coordinate는 `CoordinateSystem`을 포함한 `RawCoordinate`로 보존한다.
+- 단일 item `dict`와 다중 item `list[dict]`는 내부 list 형태로 정규화한다.
 
-## Tests Required For New Endpoints
+## 새 endpoint test 요구사항
 
-Every new endpoint wrapper should include:
+- Query parameter와 enum raw API code conversion
+- 문자열 numeric/date input의 성공 parsing
+- 단일 item `dict` normalization
+- Body-level provider error mapping
+- Malformed response shape
+- Missing required local parameter
 
-- query parameter test, including enum to raw API code conversion;
-- success parsing test with string numeric/date inputs;
-- single-item `dict` normalization test when applicable;
-- body-level provider error mapping test;
-- malformed response shape test;
-- missing required local parameter test.
+## 새 endpoint 문서 요구사항
 
-## Documentation Required For New Endpoints
+- `README.md`: endpoint가 사용자 public API라면 사용법 추가
+- `endpoints.md`: source portal, path, method, parameter, known response field
+- `API_COVERAGE.md`: implementation state와 live verification status
+- `src/krex/catalog.py`: dataset name, provider, endpoint, fixture status, service-key request URL
+- `codes.md`: public parameter/model이 쓰는 stable code table
+- `error-codes.md`: 새 provider error code
+- `AGENTS.md` 또는 `SKILL.md`: 반복 실수나 workflow rule
+- 문서 style rule은 `CONTRIBUTING.md`, `AGENTS.md`, `SKILL.md`를 함께 갱신
 
-Update documentation in the same change:
+## 반복 실수
 
-- `README.md`: add user-facing usage only when the endpoint is meant to be public.
-- `endpoints.md`: add source portal, path, method name, parameters, and known response fields.
-- `API_COVERAGE.md`: update implementation state and live verification status.
-- `src/krex/catalog.py`: update human-readable dataset names, provider,
-  endpoint, fixture status, and service-key request URLs.
-- `codes.md`: add any stable code table used by public parameters or models.
-- `error-codes.md`: add newly observed provider error codes.
-- `AGENTS.md` or this `SKILL.md`: add any repeated mistake discovered during implementation.
-- `CONTRIBUTING.md`, `AGENTS.md`, and this `SKILL.md`: update documentation
-  style rules such as path notation or Python docstring language.
+- `tn_pubr_public_rest_area_api`에 `_type`을 쓰지 않는다. 이 endpoint는 `type`을 쓴다.
+- `routeNo="0010"`, `unitCode="101"`을 int로 바꾸지 않는다.
+- `strict_no_data=False`가 아닌 한 `NO_DATA`를 success로 처리하지 않는다.
+- 안정 code value를 raw API string으로 흘리지 않는다.
+- 추측한 endpoint path를 문서화 없이 추가하지 않는다.
+- Test가 현재 public portal data에 의존하지 않게 한다.
+- Streamlit/debug UI dependency를 library에 추가하지 않는다.
+- Saved API case마다 pytest file을 생성하지 않는다. JSON fixture를 replay한다.
+- API key, Authorization header, token field redaction 확인 전 fixture를 commit하지 않는다.
+- Money/traffic parsing은 call site가 아니라 `src/krex/_convert.py` 또는 model parser helper에 둔다.
+- Realistic fixture나 fake response가 field name을 고정하기 전 Pydantic model을 공개하지 않는다.
+- Public model에 ad-hoc `(lat, lon)` tuple을 추가하지 않는다.
+- `data.ex.co.kr` 응답이 항상 `list`라고 가정하지 않는다.
+- `payload.get("count") or ...`를 쓰지 않는다. Empty response의 `count=0`은 0으로 남아야 한다.
+- API key가 model repr에 나오지 않게 한다.
+- `rg` access-denied 후 반복 시도하지 말고 PowerShell fallback으로 전환한다.
 
-## Repeated Mistakes To Avoid
-
-- Do not use `_type` for `tn_pubr_public_rest_area_api`; it uses `type`.
-- Do not convert `routeNo="0010"` or `unitCode="101"` to integers.
-- Do not treat `NO_DATA` as success unless `strict_no_data=False`.
-- Do not let raw API strings leak for stable code values that have enums.
-- Do not add endpoint paths from guesses without documenting that they are unverified.
-- Do not make tests depend on current public portal data.
-- Do not add Streamlit or debug UI dependencies to this library. UI projects
-  should import the wheel or editable install and use `KrexClient.debug_call()`.
-- Do not generate one pytest file per saved API case. Save JSON under
-  `tests/fixtures/` and replay it through `tests/test_generated_fixtures.py`.
-- Do not commit fixture files until API keys, Authorization headers, and token
-  fields are visibly redacted.
-- Do not parse money or traffic values by hand at call sites. Keep conversion in
-  `src/krex/_convert.py` or model parser helpers.
-- Do not expose a new Pydantic model until at least one realistic fixture or fake
-  response locks the expected field names.
-- Do not introduce ad-hoc `(lat, lon)` tuples in public models. Use
-  `PlaceCoordinate.latlon` only as a convenience alias.
-- Do not assume `data.ex.co.kr` always uses `list`; real responses can use an
-  endpoint-named top-level array such as `trafficIc`.
-- Do not create a second wrapper layer for a provider endpoint that already fits
-  the existing `KrexClient` namespace; port the sibling-library parser/model
-  behavior directly and document any intentional differences.
-- Do not use `payload.get("count") or ...` for counts. Real empty responses use
-  `count=0`, and that must stay `0`.
-- Do not let API keys appear in model repr output.
-- Do not use dataclass-only helpers such as `asdict()` or `__post_init__`;
-  use Pydantic validators and `model_dump()` instead.
-- Do not retry `rg` repeatedly after an `Access is denied` failure in this
-  workspace; switch to PowerShell file enumeration immediately.
-- Do not diagnose Korean Markdown as broken before checking it with explicit
-  UTF-8 encoding in PowerShell.
-
-## Release Checklist
-
-Before pushing a release branch or first public commit:
+## Release checklist
 
 ```bash
 python -m compileall src/krex tests
@@ -177,27 +130,25 @@ python -m pytest --cov=krex --cov-fail-under=90
 python -m mypy src/krex
 ```
 
-`ruff check .` is also expected when the environment has Ruff installed.
+환경에 Ruff가 있으면 `ruff check .`도 실행한다.
 
-Live `data.ex.co.kr` tests:
+Live `data.ex.co.kr` test:
 
 ```powershell
 $env:KEX_LIVE="1"
 python -m pytest -m live -vv
 ```
 
-Live tests may read `KEX_EX_API_KEY` from local `.env`, which is ignored by Git.
-
 ## Verification
 
-Run at minimum:
+최소 실행:
 
 ```bash
 python -m compileall src/krex tests
 python -m pytest
 ```
 
-When type tooling is installed:
+Type/lint 도구가 설치되어 있으면:
 
 ```bash
 python -m mypy src/krex

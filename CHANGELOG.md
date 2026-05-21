@@ -1,86 +1,56 @@
-# Changelog
+# 변경 기록
 
-All notable changes to this project are recorded here.
+이 프로젝트의 주요 변경 사항을 기록한다.
 
 ## 0.1.0 - 2026-04-30
 
-Initial package scaffold and first implementation pass.
+초기 package scaffold와 첫 구현 pass.
 
-### Added
+### 추가
 
-- `KrexClient` with `traffic`, `tollfee`, `restarea`, `facility`, `admin`, and
-  `reference` namespaces.
-- `data.ex.co.kr` and `data.go.kr` HTTP helpers with retry handling and
-  provider error-code mapping.
-- Public response models for key response types:
-  `TrafficByIc`, `TrafficFlow`, `Incident`, `TollFee`, `Tollgate`,
-  `RestArea`, `FoodPrice`, `Route`, and `Page`.
-- Stable enum code tables for car type, TCS type, road operator, direction,
-  traffic time unit, congestion level, and discount type.
-- Conversion helpers for API string values: dates, numbers, Y/N flags, and
-  single-item response normalization.
-- Network-free pytest suite covering query construction, parsing, local
-  validation, body-level provider errors, retry behavior, and malformed
-  responses.
-- Documentation set:
-  `README.md`, `endpoints.md`, `codes.md`, `error-codes.md`, `SKILL.md`,
-  `AGENTS.md`, `CONTRIBUTING.md`, and `CHANGELOG.md`.
-- Existing remote `LICENSE` preserved and package metadata aligned to
-  GPL-3.0-or-later.
+- `traffic`, `tollfee`, `restarea`, `facility`, `admin`, `reference` namespace를 가진 `KrexClient`.
+- Retry와 provider error-code mapping을 포함한 `data.ex.co.kr`/`data.go.kr` HTTP helper.
+- `TrafficByIc`, `TrafficFlow`, `Incident`, `TollFee`, `Tollgate`, `RestArea`, `FoodPrice`, `Route`, `Page` 등 주요 response model.
+- 차량 유형, TCS 유형, 도로 운영자, 방향, traffic time unit, congestion level, discount type을 위한 안정 enum code table.
+- API 문자열 값 변환 helper: 날짜, 숫자, Y/N flag, 단일 item response normalization.
+- Query construction, parsing, local validation, body-level provider error, retry behavior, malformed response를 다루는 network-free pytest suite.
+- `README.md`, `endpoints.md`, `codes.md`, `error-codes.md`, `SKILL.md`, `AGENTS.md`, `CONTRIBUTING.md`, `CHANGELOG.md` 문서 세트.
+- 기존 remote `LICENSE`를 보존하고 package metadata를 GPL-3.0-or-later에 맞춤.
 
-### Validation
+### 검증
 
 - `python -m compileall src/krex tests`
 - `python -m pytest`
 - `python -m pytest --cov=krex --cov-fail-under=90`
 - `python -m mypy src/krex`
 
-`ruff` was not available in the initial local environment.
+초기 local environment에는 `ruff`가 없었다.
 
 ## Unreleased
 
-### Added
+### 추가
 
-- Live `data.ex.co.kr` tests gated by `KEX_LIVE=1` and local `KEX_EX_API_KEY`.
-- `KrexCode` enum base with `values()`, `labels()`, `choices()`, and
-  `from_label()` helpers for external forms and validators.
-- `restarea.disabled_facility()` and `restarea.bus_transit()` raw wrappers.
-- `API_COVERAGE.md` to track documented, implemented, typed, raw, and
-  live-verified API status.
-- `CoordinateSystem`, `kraddr.base.PlaceCoordinate`, and `RawCoordinate` public
-  coordinate types.
-- `kraddr.base.Address` public address type on rest-area address models. Krex
-  address strings populate the `Address` display value and region names, while
-  provider legal-dong codes are preserved when present.
-- `Page` sequence-like helpers: iteration, `len(page)`, truthiness, `first`,
-  and `is_empty`.
-- Standard `coordinate: PlaceCoordinate | None` fields for rest areas,
-  tollgates, and rest-area weather while preserving existing `lat`/`lon` and
-  `x`/`y` fields.
-- Pydantic v2 public response models with frozen instances, validation,
-  `model_dump()`, and JSON schema support.
-- Korean Python docstrings and documentation rules requiring project-relative
-  file paths.
-- Agent workflow notes for the Windows `rg.exe` access-denied fallback and
-  explicit UTF-8 PowerShell reads.
-- `restarea.route_facilities()`, `restarea.fuel_prices()`, and
-  `restarea.convenience_facilities()` for Krex 휴게소 master 후보, 휴게소
-  주유소 가격, 노선별 편의시설 조회.
-- `RestAreaRouteFacility` and `RestAreaFuelPrice` Pydantic models.
+- `KEX_LIVE=1`과 local `KEX_EX_API_KEY`로 opt-in되는 live `data.ex.co.kr` test.
+- 외부 form/validator를 위한 `KrexCode.values()`, `labels()`, `choices()`, `from_label()` helper.
+- `restarea.disabled_facility()`와 `restarea.bus_transit()` raw wrapper.
+- 문서화, 구현, typed/raw, live verification 상태를 추적하는 `API_COVERAGE.md`.
+- `CoordinateSystem`, `kraddr.base.PlaceCoordinate`, `RawCoordinate` 공개 좌표 type.
+- Rest-area address model의 `kraddr.base.Address` 공개 주소 type.
+- `Page`의 sequence-like helper: iteration, `len(page)`, truthiness, `first`, `is_empty`.
+- Rest area, tollgate, rest-area weather에 표준 `coordinate: PlaceCoordinate | None` field를 추가하고 기존 `lat`/`lon`, `x`/`y` field를 보존.
+- Frozen instance, validation, `model_dump()`, JSON schema를 지원하는 Pydantic v2 공개 response model.
+- 한글 Python docstring과 프로젝트 기준 상대 경로 문서 규칙.
+- Windows `rg.exe` access-denied fallback과 PowerShell UTF-8 read 규칙.
+- `restarea.route_facilities()`, `restarea.fuel_prices()`, `restarea.convenience_facilities()`.
+- `RestAreaRouteFacility`, `RestAreaFuelPrice` Pydantic model.
 
-### Fixed
+### 수정
 
-- `KrexHttp` now creates a real httpx client when `session=None` is passed
-  explicitly through `KrexClient`.
-- API keys are hidden from `KrexHttp` repr output.
-- `data.ex.co.kr` default base URL now uses HTTPS.
-- `data.ex.co.kr` responses with endpoint-named top-level arrays, such as
-  `trafficIc`, are normalized.
-- `trafficIc` parsing now handles real field variants: `sumDate`, `sumTm`,
-  `inoutType`, and `trafficAmout`.
-- Empty successful `data.ex.co.kr` responses preserve `count=0` as
-  `Page.total_count == 0`.
-- Conversion helpers now accept common unit-suffixed numeric values such as
-  `1,994원` and O/X boolean flags observed in Krex rest-area APIs.
-- Rest-area route facility parsing now tolerates real records where
-  `serviceAreaName` is empty while code and facility metadata are present.
+- `KrexClient`에서 `session=None`을 명시해도 `KrexHttp`가 실제 httpx client를 만들도록 수정.
+- `KrexHttp` repr에서 API key를 숨김.
+- `data.ex.co.kr` 기본 base URL을 HTTPS로 변경.
+- `trafficIc` 같은 endpoint-named top-level array response를 정규화.
+- 실제 `trafficIc` field variant(`sumDate`, `sumTm`, `inoutType`, `trafficAmout`) 처리.
+- Empty success response의 `count=0`을 `Page.total_count == 0`으로 보존.
+- `1,994원`, O/X boolean flag 같은 실제 Krex 휴게소 API 값을 변환 helper가 처리.
+- Rest-area route facility parsing에서 `serviceAreaName`이 비어 있어도 code와 facility metadata가 있으면 허용.
