@@ -130,7 +130,7 @@ class KrexHttp:
     ) -> NormalizedPayload:
         key = normalize_api_key(self.go_api_key)
         if not key:
-            raise KrexAuthError("KEX_GO_API_KEY is not set and go_api_key was not provided")
+            raise KrexAuthError("DATA_GO_KR_SERVICE_KEY is not set and go_api_key was not provided")
         query = {"serviceKey": key}
         query["type" if standard else "_type"] = "json"
         if params:

@@ -68,5 +68,5 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra"
 markers = [
-  "live: tests that call real KEX APIs and require KEX_EX_API_KEY or KEX_GO_API_KEY",
+  "live: tests that call real KEX APIs and require KEX_EX_API_KEY or DATA_GO_KR_SERVICE_KEY",
 ]

@@ -51,7 +51,7 @@ The public package import name is `krex`; the distribution name is
 ## API Key Rules
 
 - `KEX_EX_API_KEY`: `data.ex.co.kr` key.
-- `KEX_GO_API_KEY`: `data.go.kr` key. Prefer the decoded key when using
+- `DATA_GO_KR_SERVICE_KEY`: `data.go.kr` key. Prefer the decoded key when using
   `httpx` query params.
 - `KrexClient()` falls back to the nearest local `.env` when environment
   variables are absent, and normalizes copy-paste whitespace out of keys.

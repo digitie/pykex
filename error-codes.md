@@ -226,7 +226,7 @@ API 응답과 무관하게 라이브러리 사용 중 발생.
 
 ```python
 # 1) 키 출력하여 확인 (앞뒤 공백 점검)
-print(repr(os.getenv("KEX_GO_API_KEY")))
+print(repr(os.getenv("DATA_GO_KR_SERVICE_KEY")))
 
 # 2) 인코딩된 키를 디코딩
 from urllib.parse import unquote

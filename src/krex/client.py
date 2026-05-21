@@ -81,7 +81,7 @@ class KrexClient:
             get_local_env_value("KEX_EX_API_KEY")
         )
         self.go_api_key = normalize_api_key(go_api_key) or normalize_api_key(
-            get_local_env_value("KEX_GO_API_KEY")
+            get_local_env_value("DATA_GO_KR_SERVICE_KEY")
         )
         self.strict_no_data = strict_no_data
         self._http = KrexHttp(

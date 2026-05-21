@@ -11,7 +11,7 @@
 ## 핵심 특징
 
 - **네임스페이스형 클라이언트**: `client.traffic.flow()`, `client.tollfee.between_tollgates()`처럼 문서의 API 범주와 같은 구조로 호출합니다.
-- **두 포털 동시 지원**: `data.ex.co.kr` 키(`KEX_EX_API_KEY`)와 `data.go.kr` 키(`KEX_GO_API_KEY`)를 분리해 사용합니다.
+- **두 포털 동시 지원**: `data.ex.co.kr` 키(`KEX_EX_API_KEY`)와 `data.go.kr` 키(`DATA_GO_KR_SERVICE_KEY`)를 분리해 사용합니다.
 - **로컬 `.env` 기본 로딩**: 환경변수가 없으면 현재 작업 디렉터리부터 부모 디렉터리의 `.env`를 찾아 키를 읽고, 복붙 과정에서 섞인 공백 문자를 제거합니다.
 - **API 카탈로그**: 구현된 API의 함수명, 데이터셋명, 포털, 엔드포인트, 서비스키 발급/활용신청 링크를 `api_catalog()` 또는 `get_api_catalog()`로 조회할 수 있습니다.
 - **Python 타입 변환**: 날짜, 숫자, Y/N 플래그, 코드값을 `date`, `int`, `float`, `bool`, `StrEnum`으로 변환합니다.
@@ -28,21 +28,21 @@
 
 ```bash
 export KEX_EX_API_KEY="data.ex.co.kr에서_발급받은_키"
-export KEX_GO_API_KEY="data.go.kr에서_발급받은_decoding_키"
+export DATA_GO_KR_SERVICE_KEY="data.go.kr에서_발급받은_decoding_키"
 ```
 
 Windows PowerShell:
 
 ```powershell
 $env:KEX_EX_API_KEY="data.ex.co.kr에서_발급받은_키"
-$env:KEX_GO_API_KEY="data.go.kr에서_발급받은_decoding_키"
+$env:DATA_GO_KR_SERVICE_KEY="data.go.kr에서_발급받은_decoding_키"
 ```
 
 또는 프로젝트 루트의 `.env`에 저장해도 됩니다. `KrexClient()`와 `KrexClient.from_env()`는 명시 인자가 없으면 환경변수를 먼저 보고, 없으면 가장 가까운 `.env`를 자동으로 읽습니다.
 
 ```dotenv
 KEX_EX_API_KEY=data.ex.co.kr에서_발급받은_키
-KEX_GO_API_KEY=data.go.kr에서_발급받은_decoding_키
+DATA_GO_KR_SERVICE_KEY=data.go.kr에서_발급받은_decoding_키
 ```
 
 웹 화면에서 키를 복사하며 줄바꿈, 탭, 앞뒤 공백이 섞여도 호출 전에 제거됩니다.

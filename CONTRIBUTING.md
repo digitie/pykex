@@ -103,7 +103,7 @@ def test_real_endpoint(...):
     ...
 ```
 
-Live tests must skip cleanly when `KEX_EX_API_KEY` or `KEX_GO_API_KEY` is not
+Live tests must skip cleanly when `KEX_EX_API_KEY` or `DATA_GO_KR_SERVICE_KEY` is not
 set. Never commit real response files that contain keys, account details, or
 other sensitive values.
 

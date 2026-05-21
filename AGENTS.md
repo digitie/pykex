@@ -5,7 +5,7 @@ This repository follows the same working shape as `pykma` and `pyopinet`.
 ## Non-negotiables
 
 - Do not commit API keys. Use `KEX_EX_API_KEY` for `data.ex.co.kr` and
-  `KEX_GO_API_KEY` for `data.go.kr`.
+  `DATA_GO_KR_SERVICE_KEY` for `data.go.kr`.
 - `KrexClient()` may read the nearest local `.env` when those environment
   variables are absent; never rely on that in committed tests except through
   temporary `.env` fixtures.

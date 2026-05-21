@@ -529,7 +529,7 @@ def _env_names_for_provider(provider: str) -> tuple[str, ...]:
     if provider == "data.ex.co.kr":
         return ("KEX_EX_API_KEY",)
     if provider == "data.go.kr":
-        return ("KEX_GO_API_KEY",)
+        return ("DATA_GO_KR_SERVICE_KEY",)
     return ()
 
 

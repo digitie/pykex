@@ -77,9 +77,9 @@ def test_client_loads_local_dotenv_keys_by_default(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("KEX_EX_API_KEY", raising=False)
-    monkeypatch.delenv("KEX_GO_API_KEY", raising=False)
+    monkeypatch.delenv("DATA_GO_KR_SERVICE_KEY", raising=False)
     (tmp_path / ".env").write_text(
-        "KEX_EX_API_KEY= ex key \nKEX_GO_API_KEY=' go key '\n",
+        "KEX_EX_API_KEY= ex key \nDATA_GO_KR_SERVICE_KEY=' go key '\n",
         encoding="utf-8",
     )
 
