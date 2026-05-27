@@ -6,7 +6,6 @@ from collections.abc import Iterator
 from datetime import date, datetime
 from typing import Any, Generic, TypeVar
 
-from kraddr.base import Address, PlaceCoordinate
 from pydantic import BaseModel, ConfigDict
 
 from .codes import (
@@ -136,7 +135,6 @@ class Tollgate(KrexModel):
     head_office_code: str | None
     branch_office_code: str | None
     raw: dict[str, Any]
-    coordinate: PlaceCoordinate | None = None
     raw_coordinate: RawCoordinate | None = None
 
 
@@ -152,7 +150,6 @@ class RestArea(KrexModel):
     phone_number: str | None
     reference_date: date | None
     raw: dict[str, Any]
-    coordinate: PlaceCoordinate | None = None
 
 
 class RestAreaRouteFacility(KrexModel):
@@ -163,7 +160,7 @@ class RestAreaRouteFacility(KrexModel):
     direction: str | None
     service_area_name: str | None
     phone_number: str | None
-    address: Address | None = None
+    address: str | None = None
     brand: str | None = None
     convenience: str | None = None
     has_maintenance: bool | None
@@ -182,7 +179,7 @@ class RestAreaFuelPrice(KrexModel):
     has_lpg: bool | None
     service_area_name: str | None
     phone_number: str | None
-    address: Address | None = None
+    address: str | None = None
     gasoline_price: int | None
     diesel_price: int | None
     lpg_price: int | None
@@ -200,7 +197,7 @@ class RestAreaWeather(KrexModel):
     direction_code: str | None
     lat: float | None
     lon: float | None
-    address: Address | None
+    address: str | None
     measurement_station: str | None
     weather: str | None
     temperature: float | None
@@ -214,7 +211,6 @@ class RestAreaWeather(KrexModel):
     cloud: float | None
     dew_point: float | None
     raw: dict[str, Any]
-    coordinate: PlaceCoordinate | None = None
     raw_coordinate: RawCoordinate | None = None
 
     @property

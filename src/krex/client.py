@@ -8,8 +8,6 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, TypeVar, cast
 
-from kraddr.base import Address, PlaceCoordinate
-
 from ._convert import (
     strip_or_none,
     to_bool_yn,
@@ -768,30 +766,24 @@ def _tollgate(row: dict[str, Any]) -> Tollgate:
         head_office_code=strip_or_none(_get(row, "headOfficeCode")),
         branch_office_code=strip_or_none(_get(row, "branchOfficeCode")),
         raw=row,
-        coordinate=_place_coordinate_from_row(row) or _place_coordinate_from_xy(x, y),
         raw_coordinate=raw_coordinate,
     )
 
 
 def _rest_area(row: dict[str, Any]) -> RestArea:
-    coordinate = _place_coordinate_from_row(row)
+    lon, lat = _wgs84_from_row(row)
     return RestArea(
         name=str(_required(row, "restAreaNm", "serviceAreaName")),
         route_name=strip_or_none(_get(row, "routeNm", "routeName")),
         direction=strip_or_none(_get(row, "directionContent", "direction")),
-        lat=coordinate.lat if coordinate else to_float_or_none(_get(row, "lcLatitude", "latitude")),
-        lon=(
-            coordinate.lon
-            if coordinate
-            else to_float_or_none(_get(row, "lcLongitude", "longitude"))
-        ),
+        lat=lat,
+        lon=lon,
         has_gas_station=to_bool_yn(_get(row, "gasStnYn")),
         has_lpg_station=to_bool_yn(_get(row, "lpgStnYn")),
         has_ev_charger=to_bool_yn(_get(row, "evChargYn")),
         phone_number=strip_or_none(_get(row, "phoneNumber", "tel")),
         reference_date=to_date_or_none(_get(row, "referenceDate")),
         raw=row,
-        coordinate=coordinate,
     )
 
 
@@ -804,7 +796,7 @@ def _rest_area_route_facility(row: dict[str, Any]) -> RestAreaRouteFacility:
         direction=strip_or_none(_get(row, "direction")),
         service_area_name=strip_or_none(_get(row, "serviceAreaName")),
         phone_number=strip_or_none(_get(row, "telNo", "phoneNumber", "tel")),
-        address=Address.from_mapping(row),
+        address=strip_or_none(_get(row, "svarAddr", "addr", "address")),
         brand=strip_or_none(_get(row, "brand")),
         convenience=strip_or_none(_get(row, "convenience")),
         has_maintenance=to_bool_yn(_get(row, "maintenanceYn")),
@@ -825,7 +817,7 @@ def _rest_area_fuel_price(row: dict[str, Any]) -> RestAreaFuelPrice:
         has_lpg=to_bool_yn(_get(row, "lpgYn")),
         service_area_name=strip_or_none(_get(row, "serviceAreaName")),
         phone_number=strip_or_none(_get(row, "telNo", "phoneNumber", "tel")),
-        address=Address.from_mapping(row),
+        address=strip_or_none(_get(row, "svarAddr", "addr", "address")),
         gasoline_price=to_int_or_none(_get(row, "gasolinePrice")),
         diesel_price=to_int_or_none(_get(row, "diselPrice", "dieselPrice")),
         lpg_price=to_int_or_none(_get(row, "lpgPrice")),
@@ -836,7 +828,7 @@ def _rest_area_fuel_price(row: dict[str, Any]) -> RestAreaFuelPrice:
 def _rest_area_weather(row: dict[str, Any]) -> RestAreaWeather:
     x = _weather_float_or_none(_get(row, "xValue", "x"))
     y = _weather_float_or_none(_get(row, "yValue", "y"))
-    coordinate = _place_coordinate_from_xy(x, y)
+    lon, lat = _wgs84_from_lon_lat(x, y)
     return RestAreaWeather(
         observed_at=_parse_rest_area_weather_observed_at(
             _required(row, "sdate"),
@@ -849,9 +841,9 @@ def _rest_area_weather(row: dict[str, Any]) -> RestAreaWeather:
         route_no=strip_or_none(_get(row, "routeNo")),
         route_name=strip_or_none(_get(row, "routeName")),
         direction_code=strip_or_none(_get(row, "updownTypeCode", "directionCode")),
-        lat=coordinate.lat if coordinate else None,
-        lon=coordinate.lon if coordinate else None,
-        address=Address.from_mapping(row),
+        lat=lat,
+        lon=lon,
+        address=strip_or_none(_get(row, "svarAddr", "addr", "address")),
         measurement_station=strip_or_none(_get(row, "measurement", "measurementStation")),
         weather=strip_or_none(_get(row, "weatherContents", "weather")),
         temperature=_weather_float_or_none(_get(row, "tempValue", "temperature")),
@@ -867,7 +859,6 @@ def _rest_area_weather(row: dict[str, Any]) -> RestAreaWeather:
         cloud=_weather_float_or_none(_get(row, "cloudValue", "cloud")),
         dew_point=_weather_float_or_none(_get(row, "dewValue", "dewPoint")),
         raw=row,
-        coordinate=coordinate,
         raw_coordinate=_raw_coordinate(x, y),
     )
 
@@ -965,30 +956,16 @@ def _required(row: dict[str, Any], *names: str) -> Any:
     return value
 
 
-def _place_coordinate_from_row(row: dict[str, Any]) -> PlaceCoordinate | None:
-    try:
-        coordinate = PlaceCoordinate.from_mapping(row)
-    except ValueError:
-        coordinate = None
-    if coordinate is not None:
-        return coordinate
+def _wgs84_from_row(row: dict[str, Any]) -> tuple[float | None, float | None]:
     lon = to_float_or_none(_get(row, "lon", "longitude", "lng", "lcLongitude", "경도", "xcoord"))
     lat = to_float_or_none(_get(row, "lat", "latitude", "lcLatitude", "위도", "ycoord"))
-    if lon is None or lat is None:
-        return None
-    return _place_coordinate_from_lon_lat(lon, lat)
+    return _wgs84_from_lon_lat(lon, lat)
 
 
-def _place_coordinate_from_xy(x: float | None, y: float | None) -> PlaceCoordinate | None:
-    if x is None or y is None:
-        return None
-    return _place_coordinate_from_lon_lat(x, y)
-
-
-def _place_coordinate_from_lon_lat(lon: float, lat: float) -> PlaceCoordinate | None:
-    if 124 <= lon <= 132 and 33 <= lat <= 39:
-        return PlaceCoordinate(lat=lat, lon=lon)
-    return None
+def _wgs84_from_lon_lat(lon: float | None, lat: float | None) -> tuple[float | None, float | None]:
+    if lon is not None and lat is not None and 124 <= lon <= 132 and 33 <= lat <= 39:
+        return lon, lat
+    return None, None
 
 
 def _raw_coordinate(x: float | None, y: float | None) -> RawCoordinate | None:
@@ -996,7 +973,7 @@ def _raw_coordinate(x: float | None, y: float | None) -> RawCoordinate | None:
         return None
     system = (
         CoordinateSystem.WGS84
-        if _place_coordinate_from_xy(x, y) is not None
+        if _wgs84_from_lon_lat(x, y) != (None, None)
         else CoordinateSystem.UNKNOWN
     )
     return RawCoordinate(x=x, y=y, system=system)

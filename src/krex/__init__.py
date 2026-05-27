@@ -1,7 +1,5 @@
 """한국도로공사 OpenAPI 비공식 Python 클라이언트."""
 
-from kraddr.base import Address, PlaceCoordinate
-
 from .catalog import api_catalog, api_catalog_item, get_api_catalog, get_api_catalog_item
 from .client import AsyncKrexClient, KrexClient
 from .codes import (
@@ -56,7 +54,6 @@ PROVIDER_NAME = "python-krex-api"
 
 __all__ = [
     "PROVIDER_NAME",
-    "Address",
     "AsyncKrexClient",
     "ApiCatalogItem",
     "CarType",
@@ -86,7 +83,6 @@ __all__ = [
     "KrexServiceUnavailableError",
     "KrexTimeoutError",
     "Page",
-    "PlaceCoordinate",
     "RawCoordinate",
     "RestArea",
     "RestAreaFuelPrice",

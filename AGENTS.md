@@ -16,8 +16,8 @@
 - Windows workspace에서 `rg.exe`가 `Access is denied`로 실패하면 PowerShell `Get-ChildItem`과 `Select-String -Encoding UTF8`을 사용한다.
 - UTF-8 Markdown은 PowerShell에서 `Get-Content -Encoding utf8`처럼 명시 encoding으로 읽는다.
 - 안정된 의미가 있는 공개 반환 값은 raw string보다 typed Pydantic model 또는 enum으로 제공한다.
-- 공개 WGS84 좌표는 `kraddr.base.PlaceCoordinate(lat, lon)`을 사용하고, 모호한 raw 좌표는 따로 노출한다.
-- 공개 주소 데이터는 `kraddr.base.Address`를 사용한다. Free-form 주소에서 법정동 코드를 추측하지 않는다.
+- 공개 WGS84 좌표는 모델의 `lat`/`lon` field로 노출하고, 모호한 raw 좌표는 따로 노출한다.
+- 공개 주소 데이터는 provider 원문 문자열로 보존한다. Free-form 주소에서 법정동 코드를 추측하지 않는다.
 - Leading zero가 중요한 `routeNo`, `unitCode`, branch code, office code는 문자열로 보존한다.
 - 외부 API 작업을 시작하기 전 direct public API rule을 먼저 적용한다. Provider별 wrapper/adapter/gateway layer를 새로 만들지 않는다.
 - TripMate나 `python-krtour-map`에 필요한 endpoint, pagination, cursor, exception, raw payload 계약은 downstream facade가 아니라 이 package의 공개 API로 안정화한다.
