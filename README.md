@@ -299,17 +299,13 @@ client.traffic.by_ic(
 
 ## 위경도 표준화
 
-라이브러리에서 표준 위경도 DTO는 `kraddr.base.PlaceCoordinate(lat=..., lon=...)`로 표현합니다. GeoJSON, WKT, 외부 GIS 전송 경계에서는 각 표준에 맞춰 `(lon, lat)` 순서로 변환합니다.
+휴게소처럼 WGS84 위경도가 명확한 데이터는 모델의 `lat`/`lon` 필드에 바로 제공합니다. GeoJSON, WKT, 외부 GIS 전송 경계에서는 각 표준에 맞춰 `(lon, lat)` 순서로 직접 전달하세요.
 
 ```python
 rest_area = client.restarea.list_all().first
-if rest_area and rest_area.coordinate:
-    rest_area.coordinate.lonlat              # (lon, lat)
-    rest_area.coordinate.latlon              # (lat, lon)
-    rest_area.coordinate.as_geojson_position()  # (lon, lat)
+if rest_area and rest_area.lon is not None and rest_area.lat is not None:
+    geojson_position = (rest_area.lon, rest_area.lat)
 ```
-
-기존 호환성을 위해 `RestArea.lat`/`RestArea.lon`, `Tollgate.x`/`Tollgate.y`도 유지합니다. 다만 신규 코드에서는 가능한 한 `coordinate: PlaceCoordinate | None`을 우선 사용하세요.
 
 영업소처럼 원본 좌표계가 불명확한 데이터는 `raw_coordinate`도 함께 제공합니다.
 
@@ -323,21 +319,17 @@ if tollgate and tollgate.raw_coordinate:
 
 ## 주소
 
-휴게소 주소가 있는 모델은 `address`에 `kraddr.base.Address`를 제공합니다. 원문 주소
-문자열은 `address.display_address`나 `address.address`로 확인하고, 함께 사용할 수 있는
-행정구역은 `address.effective_region`에서 확인합니다.
+휴게소 주소가 있는 모델은 provider가 준 원문 주소 문자열을 `address`에 제공합니다.
 
 ```python
 facility = client.restarea.route_facilities().first
 if facility and facility.address:
-    facility.address.display_address
-    facility.address.legal_dong_code
+    print(facility.address)
 ```
 
-KEX 응답의 주소 문자열만으로는 10자리 법정동코드를 안전하게 확정하지 않습니다.
-원문 row에 `legal_dong_code`, `ADM_CD` 같은 코드가 있으면 `Address`에 보존하고,
-코드가 없으면 시도/시군구/읍면동 이름까지만 채웁니다. 좌표 기반 법정동코드가 필요하면
-`python-vworld-api`의 법정동 경계 데이터(`LT_C_ADEMD_INFO`) 조회 결과를 별도로 결합하세요.
+KEX 응답의 주소 문자열만으로는 10자리 법정동코드를 안전하게 확정하지 않습니다. 주소
+정규화나 법정동코드가 필요하면 검증된 geocoder 또는 boundary lookup 결과를 별도로
+결합하세요.
 
 ---
 
@@ -433,7 +425,7 @@ except KrexServerError:
 - `data.ex.co.kr` 응답은 `list` 대신 endpoint 이름(`trafficIc` 등)을 top-level 배열 키로 사용할 수 있습니다.
 - 표준데이터 API는 `_type`이 아니라 `type=json`을 쓰는 경우가 있습니다.
 - 영업소/노선/기관 코드는 선행 0이 의미 있으므로 `int`로 바꾸지 않습니다.
-- 외부 표준 좌표 DTO는 `kraddr.base.PlaceCoordinate(lat=..., lon=...)`입니다. GeoJSON/GIS 경계용 `(lon, lat)`은 `point.lonlat` 또는 명시 변환 메서드를 사용하세요.
+- GeoJSON/GIS 경계용 좌표는 모델의 `lon`, `lat` 값을 명시적으로 `(lon, lat)` 순서로 전달하세요.
 - 응답의 `items.item`, `list`, `data`는 단일 `dict` 또는 `list[dict]` 양쪽을 처리합니다.
 - `count=0`은 `None`이 아니라 정수 `0`으로 보존해야 합니다.
 - `NO_DATA`는 기본적으로 `KrexNotFoundError`입니다. 빈 결과로 받고 싶으면 `KrexClient(strict_no_data=False)`를 사용합니다.

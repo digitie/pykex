@@ -8,7 +8,6 @@ from typing import Any
 import pytest
 
 from krex import (
-    Address,
     AsyncKrexClient,
     CarType,
     CongestionLevel,
@@ -19,7 +18,6 @@ from krex import (
     KrexInvalidParameterError,
     KrexNotFoundError,
     KrexParseError,
-    PlaceCoordinate,
     RestAreaWeather,
     RoadOperator,
     TCSType,
@@ -265,9 +263,6 @@ def test_tollgate_list_preserves_code_strings() -> None:
 
     assert tollgate.unit_code == "007"
     assert tollgate.x == pytest.approx(127.1)
-    assert tollgate.coordinate is not None
-    assert isinstance(tollgate.coordinate, PlaceCoordinate)
-    assert tollgate.coordinate.lonlat == pytest.approx((127.1, 37.2))
     assert tollgate.raw_coordinate is not None
     assert tollgate.raw_coordinate.system is CoordinateSystem.WGS84
 
@@ -303,9 +298,8 @@ def test_restarea_standard_data_uses_go_key_and_parses_bool() -> None:
     assert rest_area.has_gas_station is True
     assert rest_area.has_lpg_station is False
     assert rest_area.reference_date == date(2026, 4, 30)
-    assert rest_area.coordinate is not None
-    assert isinstance(rest_area.coordinate, PlaceCoordinate)
-    assert rest_area.coordinate.lonlat == pytest.approx((127.104, 37.332))
+    assert rest_area.lon == pytest.approx(127.104)
+    assert rest_area.lat == pytest.approx(37.332)
 
 
 def test_restarea_weather_builds_query_and_parses_typed_rows() -> None:
@@ -325,13 +319,7 @@ def test_restarea_weather_builds_query_and_parses_typed_rows() -> None:
     assert item.unit_name == "죽전휴게소"
     assert item.route_no == "0010"
     assert item.route_name == "경부선"
-    assert isinstance(item.address, Address)
-    assert item.address.display_address == "경기도 용인시 수지구 풍덕천동 42-1"
-    assert item.address.effective_region is not None
-    assert item.address.effective_region.sido_name == "경기도"
-    assert item.address.effective_region.sigungu_name == "용인시 수지구"
-    assert item.address.effective_region.eup_myeon_dong_name == "풍덕천동"
-    assert item.address.legal_dong_code is None
+    assert item.address == "경기도 용인시 수지구 풍덕천동 42-1"
     assert item.weather == "비끝남"
     assert item.temperature == 14.5
     assert item.humidity == 66.0
@@ -340,9 +328,6 @@ def test_restarea_weather_builds_query_and_parses_typed_rows() -> None:
     assert item.rainfall_strength is None
     assert item.new_snow is None
     assert item.snow is None
-    assert item.coordinate is not None
-    assert isinstance(item.coordinate, PlaceCoordinate)
-    assert item.coordinate.lonlat == pytest.approx((127.104165, 37.332651))
     assert item.longitude == pytest.approx(127.104165)
     assert item.latitude == pytest.approx(37.332651)
     assert item.raw["xValue"] == "127.104165"
@@ -356,7 +341,6 @@ def test_restarea_weather_accepts_single_object_and_missing_sentinel() -> None:
 
     item = client.restarea.weather(sdate="20210507", std_hour="12").items[0]
 
-    assert item.coordinate is None
     assert item.raw_coordinate is None
     assert item.longitude is None
     assert item.latitude is None
@@ -442,13 +426,7 @@ def test_restarea_route_facilities_parse_service_area_master_fields() -> None:
     assert facility.service_area_code == "A0001"
     assert facility.service_area_code2 == "000139"
     assert facility.service_area_name == "죽전휴게소"
-    assert facility.address is not None
-    assert facility.address.display_address == "경기 용인시 수지구"
-    assert facility.address.effective_region is not None
-    assert facility.address.effective_region.sido_name == "경기도"
-    assert facility.address.effective_region.sigungu_name == "용인시 수지구"
-    assert facility.address.legal_dong_code == "4146510100"
-    assert facility.address.sigungu_code == "41465"
+    assert facility.address == "경기 용인시 수지구"
     assert facility.brand == "투썸플레이스"
     assert facility.convenience == "수유실|쉼터"
     assert facility.has_maintenance is False
@@ -488,11 +466,7 @@ def test_restarea_fuel_prices_parse_money_and_lpg_flag() -> None:
     assert fuel.service_area_code2 == "000139"
     assert fuel.oil_company == "EX-OIL"
     assert fuel.has_lpg is True
-    assert fuel.address is not None
-    assert fuel.address.display_address == "경기 용인시 수지구"
-    assert fuel.address.effective_region is not None
-    assert fuel.address.effective_region.sido_name == "경기도"
-    assert fuel.address.effective_region.sigungu_name == "용인시 수지구"
+    assert fuel.address == "경기 용인시 수지구"
     assert fuel.gasoline_price == 1710
     assert fuel.diesel_price == 1599
     assert fuel.lpg_price == 1010

@@ -77,8 +77,8 @@ HTTP status만 믿지 말고 body-level result code를 확인한다.
 - `speed`, `tollFee`, `trafficVol` 같은 numeric metric은 `float` 또는 `int`로 변환한다.
 - Y/N field는 `bool | None`으로 변환한다.
 - 공개 model은 `KrexModel` 기반으로 유지해 `model_dump()`, `model_validate()`, `model_json_schema()`를 안정적으로 제공한다.
-- 표준 WGS84 위치는 `kraddr.base.PlaceCoordinate(lat, lon)`으로 노출한다.
-- 주소 데이터는 `kraddr.base.Address`로 노출한다. 법정동 코드는 provider field나 검증된 lookup 결과에서만 채운다.
+- 명확한 WGS84 위치는 모델의 `lat`/`lon` field로 노출한다.
+- 주소 데이터는 provider 원문 문자열로 보존한다. 법정동 코드는 free-form 주소에서 추측하지 않는다.
 - 모호한 raw coordinate는 `CoordinateSystem`을 포함한 `RawCoordinate`로 보존한다.
 - 단일 item `dict`와 다중 item `list[dict]`는 내부 list 형태로 정규화한다.
 

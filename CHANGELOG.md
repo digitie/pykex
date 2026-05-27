@@ -34,10 +34,9 @@
 - 외부 form/validator를 위한 `KrexCode.values()`, `labels()`, `choices()`, `from_label()` helper.
 - `restarea.disabled_facility()`와 `restarea.bus_transit()` raw wrapper.
 - 문서화, 구현, typed/raw, live verification 상태를 추적하는 `API_COVERAGE.md`.
-- `CoordinateSystem`, `kraddr.base.PlaceCoordinate`, `RawCoordinate` 공개 좌표 type.
-- Rest-area address model의 `kraddr.base.Address` 공개 주소 type.
+- `CoordinateSystem`, `RawCoordinate` 공개 좌표 type.
 - `Page`의 sequence-like helper: iteration, `len(page)`, truthiness, `first`, `is_empty`.
-- Rest area, tollgate, rest-area weather에 표준 `coordinate: PlaceCoordinate | None` field를 추가하고 기존 `lat`/`lon`, `x`/`y` field를 보존.
+- Rest area와 rest-area weather에 `lat`/`lon` field를 제공하고, tollgate/rest-area weather의 모호한 원본 좌표는 `raw_coordinate`로 보존.
 - Frozen instance, validation, `model_dump()`, JSON schema를 지원하는 Pydantic v2 공개 response model.
 - 한글 Python docstring과 프로젝트 기준 상대 경로 문서 규칙.
 - Windows `rg.exe` access-denied fallback과 PowerShell UTF-8 read 규칙.

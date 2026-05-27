@@ -315,7 +315,7 @@ print(res.items[0].traffic_volume)
 | `direction` | `direction` | `str | None` | 방향 |
 | `serviceAreaName` | `service_area_name` | `str | None` | 휴게소명. 실제 응답에서 비어 있을 수 있음 |
 | `telNo` | `phone_number` | `str | None` | 전화번호 |
-| `svarAddr` 및 코드 후보 | `address` | `Address | None` | 주소. 원문 문자열과 행정구역을 `kraddr.base.Address`로 보존 |
+| `svarAddr` | `address` | `str | None` | Provider 원문 주소 문자열 |
 | `brand` | `brand` | `str | None` | 브랜드 매장 |
 | `convenience` | `convenience` | `str | None` | 편의시설 문자열 |
 | `maintenanceYn` | `has_maintenance` | `bool | None` | 경정비 가능 여부. `Y/N`과 `O/X`를 처리 |
@@ -384,8 +384,8 @@ print(res.items[0].traffic_volume)
 | `routeNo` | `route_no` | `str | None` | 노선번호 |
 | `routeName` | `route_name` | `str | None` | 노선명 |
 | `updownTypeCode` | `direction_code` | `str | None` | 방향 코드 |
-| `xValue` / `yValue` | `coordinate` | `PlaceCoordinate | None` | 유효한 WGS84 좌표 |
-| `addr` 및 코드 후보 | `address` | `Address | None` | 주소. 주소 문자열만으로는 법정동코드를 추정하지 않음 |
+| `xValue` / `yValue` | `lon` / `lat` | `float | None` | 유효한 WGS84 경도/위도 |
+| `addr` | `address` | `str | None` | Provider 원문 주소 문자열. 주소 문자열만으로는 법정동코드를 추정하지 않음 |
 | `measurement` | `measurement_station` | `str | None` | 관측 지점명 |
 | `weatherContents` | `weather` | `str | None` | 날씨 설명 |
 | `tempValue` | `temperature` | `float | None` | 기온 |
@@ -435,7 +435,7 @@ print(res.items[0].traffic_volume)
 | `lpgYn` | `has_lpg` | `bool | None` | LPG 여부. `Y/N`과 `O/X`를 처리 |
 | `serviceAreaName` | `service_area_name` | `str | None` | 휴게소/주유소명 |
 | `telNo` | `phone_number` | `str | None` | 전화번호 |
-| `svarAddr` 및 코드 후보 | `address` | `Address | None` | 주소. 원문 문자열과 행정구역을 `kraddr.base.Address`로 보존 |
+| `svarAddr` | `address` | `str | None` | Provider 원문 주소 문자열 |
 | `gasolinePrice` | `gasoline_price` | `int | None` | 휘발유 가격. `1,994원` 같은 단위 suffix를 처리 |
 | `diselPrice` / `dieselPrice` | `diesel_price` | `int | None` | 경유 가격 |
 | `lpgPrice` | `lpg_price` | `int | None` | LPG 가격 |
