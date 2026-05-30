@@ -25,7 +25,7 @@
         "serve",
         "--mcp"
       ],
-      "cwd": "F:\\dev\\python-krex-api"
+      "cwd": "F:\\dev\\python-krex-api-claude"
     }
   }
 }

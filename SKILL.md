@@ -41,6 +41,8 @@ $env:KEX_LIVE="1"
 python -m pytest -m live -vv
 ```
 
+에이전트 작업은 고정 worktree에서 진행한다. ChatGPT Codex는 `F:\dev\python-krex-api-codex`, Claude Code는 `F:\dev\python-krex-api-claude`, Google Antigravity는 `F:\dev\python-krex-api-antigravity`를 사용한다. worktree마다 한 번만 `codegraph init -i`를 실행하고, 작업 시작마다 `git fetch` 후 새 브랜치를 만들고 `codegraph sync`를 실행한다.
+
 ## 3. 디렉토리 지도
 
 ```
@@ -76,6 +78,7 @@ error-codes.md     — API 에러 코드 분석 문서
 10. **`data.ex.co.kr` 응답이 항상 `list`라고 가정 금지**: Korean public API는 단일 item일 때 `dict`, 다중 item일 때 `list`를 반환할 수 있으므로 이에 대한 정규화 처리가 필수적이다.
 11. **API Key가 repr 표현식이나 실패 로그에 노출되게 만들기 금지**: `KrexClient` 인스턴스 출력 또는 에러 문자열 조립 시 API Key가 절대 유출되지 않게 마스킹해야 한다.
 12. **Windows에서 `rg.exe`가 Access Denied 시 무한 반복 금지**: 즉시 PowerShell `Get-ChildItem`과 `Select-String -Encoding UTF8` 백업 명령어를 활용한다.
+13. **`.codegraph/` 커밋 금지**: CodeGraph 인덱스는 worktree 로컬 산출물이다. 이미 초기화된 worktree에서는 `codegraph init` 재실행 대신 `codegraph sync`를 사용한다.
 
 ## 5. 자주 묻는 작업
 
