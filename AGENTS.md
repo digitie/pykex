@@ -28,6 +28,7 @@ PC 개발은 Windows 호스트에서 직접 진행한다.
 - **Python 버전**: Python 3.11+
 - **Unit test**: 네트워크를 절대 직접 호출하지 않는다. Fake session 또는 JSON fixture를 사용한다.
 - **의존성 관리**: `pyproject.toml`을 기준으로 하며, 개발 및 디버그용 의존성은 명시된 optional-dependencies에 격리한다.
+- **에이전트별 고정 worktree**: ChatGPT Codex는 `F:\dev\python-krex-api-codex`, Claude Code는 `F:\dev\python-krex-api-claude`, Google Antigravity는 `F:\dev\python-krex-api-antigravity`를 사용한다. 작업마다 브랜치만 새로 만들고, CodeGraph는 worktree마다 1회 `codegraph init -i` 후 `codegraph sync`로 유지한다.
 
 ## 지시 우선순위
 
@@ -50,6 +51,7 @@ PC 개발은 Windows 호스트에서 직접 진행한다.
 7. **Debug UI 의존성을 이 library에 포함 금지**: Streamlit 등의 디버그 UI 도구는 배포 패키지 코어 의존성에서 철저히 제외한다.
 8. **임시/캐시 파일 커밋 금지**: `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.coverage`, `.venv` 및 가상환경 관련 파일은 절대 커밋하지 않는다.
 9. **독립된 wrapper 신규 작성 남발 금지**: sibling library에 검증된 provider endpoint 구현이 있으면 기존 `KrexClient` namespace로 포팅하여 재사용성을 극대화한다.
+10. **`.codegraph/` 커밋 금지**: CodeGraph 인덱스는 worktree 로컬 산출물이다. 이미 초기화된 worktree에서는 `codegraph init` 재실행 대신 `codegraph sync`를 사용한다.
 
 ## Module ownership
 
