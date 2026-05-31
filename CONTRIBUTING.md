@@ -14,6 +14,8 @@ python -m venv .venv
 pip install -e ".[dev]"
 ```
 
+git 명령은 Windows용 `git.exe` 기준으로 사용한다. WSL 셸에서 작업할 때도 `"/mnt/c/Program Files/Git/cmd/git.exe"` 호출을 우선한다.
+
 macOS/Linux:
 
 ```bash
@@ -103,6 +105,7 @@ Style rule:
 - 파일 위치는 `src/krex/client.py`처럼 프로젝트 기준 상대 경로로 쓴다.
 - Python docstring과 설명 주석은 provider 원문이나 public code/protocol identifier를 보존하는 경우를 제외하고 한글로 쓴다.
 - Windows workspace에서 `rg.exe`가 막히면 PowerShell enumeration과 `Select-String`을 사용한다.
+- Windows workspace의 git worktree는 WSL 기본 `git` 대신 Windows용 `git.exe`로 다룬다.
 - Korean text가 깨져 보이면 먼저 `Get-Content -Encoding utf8`로 확인한다.
 
 ## Security

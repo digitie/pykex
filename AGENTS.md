@@ -25,6 +25,7 @@
 ## 개발 환경 정책
 
 PC 개발은 Windows 호스트에서 직접 진행한다.
+- **Git 사용**: 이 저장소의 git 작업은 항상 Windows용 `git.exe` 기준으로 수행한다. WSL 셸 안에서도 필요하면 `"/mnt/c/Program Files/Git/cmd/git.exe"`처럼 Windows git을 직접 호출한다.
 - **Python 버전**: Python 3.11+
 - **Unit test**: 네트워크를 절대 직접 호출하지 않는다. Fake session 또는 JSON fixture를 사용한다.
 - **의존성 관리**: `pyproject.toml`을 기준으로 하며, 개발 및 디버그용 의존성은 명시된 optional-dependencies에 격리한다.

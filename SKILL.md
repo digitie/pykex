@@ -35,6 +35,8 @@ python -m mypy src/krex
 ruff check .
 ```
 
+git 관련 작업은 Windows용 `git.exe`를 사용한다. WSL에서 작업 중이어도 `"/mnt/c/Program Files/Git/cmd/git.exe"` 호출을 기본으로 삼는다.
+
 실제 API 호출을 통한 검증을 진행할 경우:
 ```powershell
 $env:KEX_LIVE="1"
@@ -79,6 +81,7 @@ error-codes.md     — API 에러 코드 분석 문서
 11. **API Key가 repr 표현식이나 실패 로그에 노출되게 만들기 금지**: `KrexClient` 인스턴스 출력 또는 에러 문자열 조립 시 API Key가 절대 유출되지 않게 마스킹해야 한다.
 12. **Windows에서 `rg.exe`가 Access Denied 시 무한 반복 금지**: 즉시 PowerShell `Get-ChildItem`과 `Select-String -Encoding UTF8` 백업 명령어를 활용한다.
 13. **`.codegraph/` 커밋 금지**: CodeGraph 인덱스는 worktree 로컬 산출물이다. 이미 초기화된 worktree에서는 `codegraph init` 재실행 대신 `codegraph sync`를 사용한다.
+14. **WSL 기본 `git`로 worktree를 억지로 다루지 말 것**: 이 저장소는 Windows worktree 메타데이터를 사용할 수 있으므로 git 명령은 Windows용 `git.exe`로 실행한다.
 
 ## 5. 자주 묻는 작업
 
