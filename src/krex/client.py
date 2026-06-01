@@ -773,7 +773,7 @@ def _tollgate(row: dict[str, Any]) -> Tollgate:
 def _rest_area(row: dict[str, Any]) -> RestArea:
     lon, lat = _wgs84_from_row(row)
     return RestArea(
-        name=str(_required(row, "restAreaNm", "serviceAreaName")),
+        name=str(_required(row, "entrpsNm", "restAreaNm", "serviceAreaName")),
         route_name=strip_or_none(_get(row, "routeNm", "routeName")),
         direction=strip_or_none(_get(row, "directionContent", "direction")),
         lat=lat,

@@ -302,6 +302,32 @@ def test_restarea_standard_data_uses_go_key_and_parses_bool() -> None:
     assert rest_area.lat == pytest.approx(37.332)
 
 
+def test_restarea_list_all_parses_entrpsNm_field() -> None:
+    session = FakeSession(
+        go_payload(
+            [
+                {
+                    "entrpsNm": "강릉(강릉)",
+                    "routeNm": "동해고속도로",
+                    "directionContent": "강릉방향",
+                    "lcLatitude": "37.751",
+                    "lcLongitude": "128.876",
+                    "gasStnYn": "Y",
+                    "lpgStnYn": "N",
+                    "evChargYn": "N",
+                }
+            ]
+        )
+    )
+    client = KrexClient(go_api_key="go-key", retry_backoff=0, session=session)
+
+    rest_area = client.restarea.list_all().items[0]
+
+    assert rest_area.name == "강릉(강릉)"
+    assert rest_area.route_name == "동해고속도로"
+    assert rest_area.has_gas_station is True
+
+
 def test_restarea_weather_builds_query_and_parses_typed_rows() -> None:
     session = FakeSession(ex_payload([rest_weather_row()]))
     client = KrexClient(ex_api_key="road-key", retry_backoff=0, session=session)
