@@ -45,6 +45,7 @@
 
 ### 수정
 
+- `traffic.incident()`를 존재하지 않는 `/openapi/trafficapi/incident`(항상 404)에서 실시간 문자정보(apiId 0611) `/openapi/burstInfo/realTimeSms`로 repoint. 파라미터를 `acc_type_code` 선택값으로 교체하고, `Incident` 모델을 live 실측 row(accDate/accHour/accType/smsText/startEndTypeCode/위경도 등)에 맞춰 재정렬. 경도는 포털 명세상 `altitude` 키로 온다. `realTimeSMSList` 목록 키 추출 지원. (#8)
 - `KrexClient`에서 `session=None`을 명시해도 `KrexHttp`가 실제 httpx client를 만들도록 수정.
 - `KrexHttp` repr에서 API key를 숨김.
 - `data.ex.co.kr` 기본 base URL을 HTTPS로 변경.

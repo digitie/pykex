@@ -15,7 +15,7 @@
   - [영업소별 교통량 (`traffic.by_ic`)](#영업소별-교통량)
   - [노선별 교통량 (`traffic.by_route`)](#노선별-교통량)
   - [실시간 소통 (`traffic.flow`)](#실시간-소통)
-  - [실시간 사고/공사 정보 (`traffic.incident`)](#실시간-사고공사-정보)
+  - [실시간 문자정보/돌발 (`traffic.incident`)](#실시간-문자정보돌발)
   - [VDS 원시자료 (`traffic.vds_raw`)](#vds-원시자료)
   - [AVC 원시자료 (`traffic.avc_raw`)](#avc-원시자료)
 - [통행료 (Tollfee)](#통행료-tollfee)
@@ -180,20 +180,40 @@ print(res.items[0].traffic_volume)
 
 ---
 
-### 실시간 사고/공사 정보
+### 실시간 문자정보/돌발
 
-고속도로상의 사고, 공사, 통제 등 이벤트 정보.
+고속도로 사고, 공사, 통제 등 돌발 상황의 실시간 문자정보 (apiId 0611).
+
+> 구 경로 `/openapi/trafficapi/incident`는 포털에서 제거되어 항상 HTTP 404를
+> 반환한다 (2026-06-11 확인). 현행 경로는 아래와 같다.
 
 - **포털**: `data.ex.co.kr`
-- **경로**: `/openapi/trafficapi/incident`
+- **경로**: `/openapi/burstInfo/realTimeSms`
 - **메서드**: `client.traffic.incident()`
 
 **파라미터**
 
 | 이름 | 필수 | 타입 | 설명 |
 |------|------|------|------|
-| `routeNo` | O | `code` | 노선번호 |
-| `incidentType` | O | `code` | `1`=사고, `2`=공사, `3`=기상, `4`=기타 |
+| `accTypeCode` | O | `code` | 돌발 유형 코드 (미지정 시 전체) |
+| `numOfRows` | O | `int` | 페이지당 건수 |
+| `pageNo` | O | `int` | 페이지 번호 |
+
+**응답 필드** (목록 키: `realTimeSMSList`, 전체 건수 키: `count`)
+
+| 키 | 모델 필드 | 설명 |
+|------|------|------|
+| `accDate` / `accHour` | `occurred_date` / `occurred_time` | 발생일 (`2023.09.27`) / 발생시각 (`09:11:24`) |
+| `accType` / `accTypeCode` | `incident_type` / `incident_type_code` | 돌발 유형명 / 코드 |
+| `startEndTypeCode` | `direction` | 방향 텍스트 (예: `대구방향`) |
+| `smsText` | `message` | 문자정보 본문 |
+| `accPointNM` | `point_name` | 발생 지점명 (공백뿐이면 `None`) |
+| `nosunNM` / `roadNM` | `route_no` / `route_name` | 노선번호 (`0552`) / 도로명 (`대구부산선`) |
+| `accProcessNM` / `accProcessCode` | `process_status` / `process_status_code` | 처리 상태명 / 코드 |
+| `latitude` | `latitude` | 돌발시작이정위도 |
+| `altitude` | `longitude` | **돌발시작이정경도** — 포털이 경도를 `altitude` 키로 내려준다 |
+| `lateLength` | `congestion_length` | 정체길이 |
+| `seriesNM` | `series_no` | 일련번호 |
 
 ---
 
