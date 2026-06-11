@@ -82,11 +82,11 @@ _CATALOG: tuple[ApiCatalogItem, ...] = (
     ),
     _ex(
         "traffic.incident",
-        "한국도로공사_실시간 사고·공사정보",
-        "/openapi/trafficapi/incident",
+        "한국도로공사_실시간 문자정보(돌발)",
+        "/openapi/burstInfo/realTimeSms",
         "Page[Incident]",
-        "사고, 공사, 이벤트 안내 정보입니다.",
-        live_verified=False,
+        "사고, 공사, 통제 등 고속도로 돌발 상황 실시간 문자정보입니다.",
+        live_verified=True,
     ),
     _ex(
         "traffic.vds_raw",

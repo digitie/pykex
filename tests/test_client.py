@@ -207,6 +207,101 @@ def test_traffic_flow_accepts_single_dict_response() -> None:
     assert flow.free_flow_speed == pytest.approx(100.0)
 
 
+def incident_row(**overrides: Any) -> dict[str, Any]:
+    # 2026-06-11 /openapi/burstInfo/realTimeSms live 실측 row.
+    row = {
+        "accDate": "2023.09.27",
+        "accHour": "09:11:24",
+        "accTypeCode": "15",
+        "accType": "이벤트/홍보",
+        "startEndTypeCode": "대구방향",
+        "smsText": "** 운전 중 휴대전화 사용 금지 **",
+        "accProcessCode": "1",
+        "accProcessNM": "진행",
+        "accPointNM": "  ",
+        "nosunNM": "0552",
+        "roadNM": "대구부산선",
+        "latitude": None,
+        "altitude": None,
+        "lateLength": None,
+        "seriesNM": 1,
+        "laneYn1": "N",
+        "shldroadYn": "N",
+    }
+    row.update(overrides)
+    return row
+
+
+def incident_payload(rows: list[dict[str, Any]], count: int = 190) -> dict[str, Any]:
+    # realTimeSms 응답에는 code 키가 없고 list 대신 realTimeSMSList 키가 온다.
+    return {
+        "count": count,
+        "pageNo": 1,
+        "numOfRows": len(rows),
+        "pageSize": 64,
+        "realTimeSMSList": rows,
+    }
+
+
+def test_traffic_incident_calls_realtime_sms_and_parses_live_shape() -> None:
+    session = FakeSession(incident_payload([incident_row()]))
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+
+    page = client.traffic.incident(acc_type_code="15", num_of_rows=1)
+
+    assert session.last_url.endswith("/openapi/burstInfo/realTimeSms")
+    assert session.last_params["accTypeCode"] == "15"
+    assert session.last_params["numOfRows"] == 1
+    assert "routeNo" not in session.last_params
+    assert "incidentType" not in session.last_params
+    assert page.total_count == 190
+    assert page.page_no == 1
+    incident = page.items[0]
+    assert incident.occurred_date == "2023.09.27"
+    assert incident.occurred_time == "09:11:24"
+    assert incident.incident_type == "이벤트/홍보"
+    assert incident.incident_type_code == "15"
+    assert incident.direction == "대구방향"
+    assert incident.message == "** 운전 중 휴대전화 사용 금지 **"
+    assert incident.point_name is None  # 공백뿐인 accPointNM은 None으로 정규화.
+    assert incident.route_no == "0552"
+    assert incident.route_name == "대구부산선"
+    assert incident.process_status == "진행"
+    assert incident.process_status_code == "1"
+    assert incident.latitude is None
+    assert incident.longitude is None
+    assert incident.congestion_length is None
+    assert incident.series_no == 1
+    assert incident.raw["laneYn1"] == "N"
+
+
+def test_traffic_incident_maps_altitude_key_to_longitude() -> None:
+    # 포털 명세상 '돌발시작이정경도'가 altitude 키로 내려온다.
+    session = FakeSession(
+        incident_payload(
+            [
+                incident_row(
+                    latitude="35.123456",
+                    altitude="128.654321",
+                    lateLength="2.5",
+                    accPointNM="동대구",
+                )
+            ],
+            count=1,
+        )
+    )
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+
+    page = client.traffic.incident()
+
+    assert "accTypeCode" not in session.last_params  # 미지정 선택 파라미터는 전송 안 함.
+    incident = page.items[0]
+    assert incident.latitude == pytest.approx(35.123456)
+    assert incident.longitude == pytest.approx(128.654321)
+    assert incident.congestion_length == pytest.approx(2.5)
+    assert incident.point_name == "동대구"
+
+
 def test_tollfee_between_tollgates_parses_money_and_distance() -> None:
     session = FakeSession(
         ex_payload(

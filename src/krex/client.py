@@ -391,16 +391,20 @@ class TrafficService:
     def incident(
         self,
         *,
-        route_no: str | None = None,
-        incident_type: str | None = None,
+        acc_type_code: str | None = None,
         num_of_rows: int = 1000,
         page_no: int = 1,
     ) -> Page[Incident]:
+        """0611 실시간 문자정보(돌발) 조회.
+
+        구 `/openapi/trafficapi/incident`는 포털에서 제거되어 항상 404를
+        반환하므로 `/openapi/burstInfo/realTimeSms`를 호출한다.
+        """
+
         return self._client._page_ex(
-            "/openapi/trafficapi/incident",
+            "/openapi/burstInfo/realTimeSms",
             {
-                "routeNo": route_no,
-                "incidentType": incident_type,
+                "accTypeCode": acc_type_code,
                 "numOfRows": num_of_rows,
                 "pageNo": page_no,
             },
@@ -722,13 +726,23 @@ def _traffic_flow(row: dict[str, Any]) -> TrafficFlow:
 
 def _incident(row: dict[str, Any]) -> Incident:
     return Incident(
-        route_no=strip_or_none(_get(row, "routeNo")),
-        route_name=strip_or_none(_get(row, "routeName")),
-        direction=_enum_or_none(Direction, _get(row, "dirType", "directionCode")),
-        incident_type=strip_or_none(_get(row, "incidentType", "eventType")),
-        message=strip_or_none(_get(row, "message", "contents", "incidentContent")),
-        started_at=strip_or_none(_get(row, "startDate", "startTime")),
-        ended_at=strip_or_none(_get(row, "endDate", "endTime")),
+        occurred_date=strip_or_none(_get(row, "accDate")),
+        occurred_time=strip_or_none(_get(row, "accHour")),
+        incident_type=strip_or_none(_get(row, "accType")),
+        incident_type_code=strip_or_none(_get(row, "accTypeCode")),
+        direction=strip_or_none(_get(row, "startEndTypeCode")),
+        message=strip_or_none(_get(row, "smsText")),
+        point_name=strip_or_none(_get(row, "accPointNM")),
+        route_no=strip_or_none(_get(row, "nosunNM")),
+        route_name=strip_or_none(_get(row, "roadNM")),
+        process_status=strip_or_none(_get(row, "accProcessNM")),
+        process_status_code=strip_or_none(_get(row, "accProcessCode")),
+        latitude=to_float_or_none(_get(row, "latitude")),
+        # 포털 명세상 '돌발시작이정경도'(경도)가 `altitude` 키로 내려온다.
+        # 키 이름만 보고 고도로 오해하지 말 것.
+        longitude=to_float_or_none(_get(row, "altitude")),
+        congestion_length=to_float_or_none(_get(row, "lateLength")),
+        series_no=to_int_or_none(_get(row, "seriesNM")),
         raw=row,
     )
 

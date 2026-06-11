@@ -331,7 +331,7 @@ def _normalize_go_payload(payload: dict[str, Any], *, params: dict[str, Any]) ->
 
 
 def _ex_items(payload: dict[str, Any]) -> Any:
-    for key in ("list", "List", "data", "items", "item"):
+    for key in ("list", "List", "data", "items", "item", "realTimeSMSList"):
         if key in payload:
             return payload[key]
     for key, value in payload.items():

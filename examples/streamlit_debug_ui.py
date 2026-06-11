@@ -62,7 +62,7 @@ DEFAULT_PARAMS: dict[str, dict[str, Any]] = {
         "page_no": 1,
     },
     "traffic.flow": {"route_no": "0010", "num_of_rows": 10, "page_no": 1},
-    "traffic.incident": {"route_no": "0010", "num_of_rows": 10, "page_no": 1},
+    "traffic.incident": {"num_of_rows": 10, "page_no": 1},
     "traffic.avc_raw": {"vds_id": "V001", "std_date": "20260430"},
     "tollfee.between_tollgates": {
         "start_unit_code": "101",

@@ -1,6 +1,6 @@
 # API coverage
 
-Snapshot date: 2026-05-07
+Snapshot date: 2026-06-11
 
 이 문서는 섞이기 쉬운 세 가지 상태를 분리한다.
 
@@ -17,7 +17,7 @@ Snapshot date: 2026-05-07
 | `traffic.by_ic()` | `data.ex.co.kr` | `Page[TrafficByIc]` | Yes | Yes | 실제 응답은 top-level `trafficIc`와 `trafficAmout` 같은 field variant를 사용한다. |
 | `traffic.by_route()` | `data.ex.co.kr` | `Page[dict]` | Yes | Yes | Empty success가 `count=0`, `list=[]`일 수 있다. |
 | `traffic.flow()` | `data.ex.co.kr` | `Page[TrafficFlow]` | Yes | No | 과거 live probe에서 404가 반환되어 portal UI 확인 전까지 unverified로 둔다. |
-| `traffic.incident()` | `data.ex.co.kr` | `Page[Incident]` | Yes | No | Unit-tested wrapper, live path unverified. |
+| `traffic.incident()` | `data.ex.co.kr` | `Page[Incident]` | Yes | Yes | 구 `trafficapi/incident`는 404로 제거 확인. `burstInfo/realTimeSms`(apiId 0611)로 repoint, 2026-06-11 live 검증 (count=190). 경도는 `altitude` 키로 온다. |
 | `traffic.vds_raw()` | `data.ex.co.kr` | `Page[dict]` | Yes | No | High-volume raw endpoint이므로 live test는 date/time range를 좁힌다. |
 | `traffic.avc_raw()` | `data.ex.co.kr` | `Page[dict]` | Yes | No | `vds_id`, `std_date`가 필요하다. |
 | `tollfee.between_tollgates()` | `data.ex.co.kr` | `Page[TollFee]` | Yes | No | 과거 live probe에서 404. Path 보정 필요 가능성이 있다. |
@@ -50,7 +50,7 @@ Snapshot date: 2026-05-07
 | Typed public model을 반환하는 method | 10 |
 | Raw `dict` record를 반환하는 method | 13 |
 | Local reference helper | 3 |
-| Provider live 검증 완료 method | 5 |
+| Provider live 검증 완료 method | 6 |
 
 ## 더 넓은 공식 API backlog
 

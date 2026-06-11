@@ -98,13 +98,27 @@ class TrafficFlow(KrexModel):
 
 
 class Incident(KrexModel):
+    """0611 실시간 문자정보(`/openapi/burstInfo/realTimeSms`) 돌발 row.
+
+    `direction`은 `startEndTypeCode` 키로 오는 "대구방향" 같은 한국어 텍스트라
+    `Direction` enum이 아닌 일반 문자열로 둔다.
+    """
+
+    occurred_date: str | None
+    occurred_time: str | None
+    incident_type: str | None
+    incident_type_code: str | None
+    direction: str | None
+    message: str | None
+    point_name: str | None
     route_no: str | None
     route_name: str | None
-    direction: Direction | None
-    incident_type: str | None
-    message: str | None
-    started_at: str | None
-    ended_at: str | None
+    process_status: str | None
+    process_status_code: str | None
+    latitude: float | None
+    longitude: float | None
+    congestion_length: float | None
+    series_no: int | None
     raw: dict[str, Any]
 
 
