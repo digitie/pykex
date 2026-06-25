@@ -18,6 +18,8 @@ def to_int_or_none(value: Any) -> int | None:
     text = strip_or_none(value)
     if text is None:
         return None
+    if text.upper() in {"X", "-", "N/A", "NA"}:
+        return None
     normalized = text.replace(",", "")
     match = re.fullmatch(r"([-+]?\d+)(?:\D+)?", normalized)
     if match is None:
@@ -28,6 +30,8 @@ def to_int_or_none(value: Any) -> int | None:
 def to_float_or_none(value: Any) -> float | None:
     text = strip_or_none(value)
     if text is None:
+        return None
+    if text.upper() in {"X", "-", "N/A", "NA"}:
         return None
     normalized = text.replace(",", "")
     match = re.fullmatch(r"([-+]?\d+(?:\.\d+)?)(?:\D+)?", normalized)
