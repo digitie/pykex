@@ -593,6 +593,34 @@ def test_restarea_fuel_prices_parse_money_and_lpg_flag() -> None:
     assert fuel.lpg_price == 1010
 
 
+def test_restarea_fuel_prices_treat_x_price_as_missing() -> None:
+    session = FakeSession(
+        ex_payload(
+            [
+                {
+                    "routeCode": "0010",
+                    "serviceAreaCode": "A0001",
+                    "routeName": "경부고속도로",
+                    "direction": "서울",
+                    "oilCompany": "EX-OIL",
+                    "lpgYn": "N",
+                    "serviceAreaName": "죽전휴게소",
+                    "gasolinePrice": "X",
+                    "diselPrice": "-",
+                    "lpgPrice": "N/A",
+                }
+            ]
+        )
+    )
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+
+    fuel = client.restarea.fuel_prices(oil_company="EX-OIL").items[0]
+
+    assert fuel.gasoline_price is None
+    assert fuel.diesel_price is None
+    assert fuel.lpg_price is None
+
+
 def test_restarea_convenience_facilities_stays_raw_until_schema_is_verified() -> None:
     session = FakeSession(ex_payload([{"serviceAreaCode": "A0001", "unknownFacility": "Y"}]))
     client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
