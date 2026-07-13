@@ -401,14 +401,16 @@ class TrafficService:
         반환하므로 `/openapi/burstInfo/realTimeSms`를 호출한다.
         """
 
-        return self._client._page_ex(
-            "/openapi/burstInfo/realTimeSms",
-            {
-                "accTypeCode": acc_type_code,
-                "numOfRows": num_of_rows,
-                "pageNo": page_no,
-            },
-            _incident,
+        return _validate_realtime_sms_page(
+            self._client._page_ex(
+                "/openapi/burstInfo/realTimeSms",
+                {
+                    "accTypeCode": acc_type_code,
+                    "numOfRows": num_of_rows,
+                    "pageNo": page_no,
+                },
+                _incident,
+            )
         )
 
     def vds_raw(self, **params: Any) -> Page[dict[str, Any]]:
@@ -690,6 +692,38 @@ def _parse_page(payload: NormalizedPayload, parser: Callable[[dict[str, Any]], T
         total_count=payload.total_count,
         raw=payload.raw,
     )
+
+
+def _validate_realtime_sms_page(page: Page[Incident]) -> Page[Incident]:
+    """실시간 문자정보의 명시적 snapshot envelope를 검증한다.
+
+    이 endpoint는 정상 응답에도 ``code``가 없으므로 EX 공통 success-code만으로는
+    오류 본문과 빈 snapshot을 구분할 수 없다. ``realTimeSMSList``와 non-negative
+    ``count``가 함께 있을 때만 호출자가 authoritative snapshot으로 사용할 수 있다.
+    """
+    raw = page.raw
+    if not isinstance(raw, dict) or "realTimeSMSList" not in raw:
+        raise KrexParseError(
+            "realTimeSms response did not contain realTimeSMSList",
+            response=raw,
+        )
+    raw_items = raw["realTimeSMSList"]
+    if not isinstance(raw_items, (dict, list)):
+        raise KrexParseError(
+            "realTimeSms.realTimeSMSList must be an object or list of objects",
+            response=raw,
+        )
+    if "count" not in raw or page.total_count is None or page.total_count < 0:
+        raise KrexParseError(
+            "realTimeSms response did not contain a non-negative count",
+            response=raw,
+        )
+    if len(page.items) > page.total_count:
+        raise KrexParseError(
+            "realTimeSms item count exceeded response count",
+            response=raw,
+        )
+    return page
 
 
 def _traffic_by_ic(row: dict[str, Any]) -> TrafficByIc:

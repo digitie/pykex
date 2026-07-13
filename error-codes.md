@@ -206,8 +206,10 @@ API 응답과 무관하게 라이브러리 사용 중 발생.
 | `KrexXMLParseError` | XML 파싱 실패 (응답이 HTML 에러 페이지였던 경우 흔함) |
 | `KrexJSONParseError` | JSON 파싱 실패 |
 
-`KrexParseError`가 발생하면 거의 항상 응답이 HTML(에러 페이지)이거나
-빈 본문일 가능성이 높습니다. `e.raw_body`로 원본을 확인하세요.
+`KrexParseError`는 응답이 HTML(에러 페이지)이거나 빈 본문일 때뿐 아니라, HTTP 200
+JSON이 endpoint의 필수 envelope를 충족하지 않을 때도 발생한다. 예를 들어
+`traffic.incident()`는 `realTimeSMSList`와 0 이상인 `count`가 모두 있어야 빈 목록을
+정상 snapshot으로 인정한다. 가능한 경우 `e.response`에서 원본 응답을 확인한다.
 
 ---
 

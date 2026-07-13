@@ -275,6 +275,36 @@ def test_traffic_incident_calls_realtime_sms_and_parses_live_shape() -> None:
     assert incident.raw["laneYn1"] == "N"
 
 
+def test_traffic_incident_accepts_explicit_empty_snapshot() -> None:
+    session = FakeSession(incident_payload([], count=0))
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+
+    page = client.traffic.incident()
+
+    assert page.items == ()
+    assert page.total_count == 0
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"message": "temporary error"},
+        {"count": 0},
+        {"count": 0, "realTimeSMSList": None},
+        {"count": -1, "realTimeSMSList": []},
+    ],
+)
+def test_traffic_incident_rejects_non_authoritative_empty_payload(
+    payload: dict[str, Any],
+) -> None:
+    session = FakeSession(payload)
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+
+    with pytest.raises(KrexParseError, match="realTimeSms"):
+        client.traffic.incident()
+
+
 def test_traffic_incident_maps_altitude_key_to_longitude() -> None:
     # 포털 명세상 '돌발시작이정경도'가 altitude 키로 내려온다.
     session = FakeSession(
@@ -591,6 +621,34 @@ def test_restarea_fuel_prices_parse_money_and_lpg_flag() -> None:
     assert fuel.gasoline_price == 1710
     assert fuel.diesel_price == 1599
     assert fuel.lpg_price == 1010
+
+
+def test_restarea_fuel_prices_treat_x_price_as_missing() -> None:
+    session = FakeSession(
+        ex_payload(
+            [
+                {
+                    "routeCode": "0010",
+                    "serviceAreaCode": "A0001",
+                    "routeName": "경부고속도로",
+                    "direction": "서울",
+                    "oilCompany": "EX-OIL",
+                    "lpgYn": "N",
+                    "serviceAreaName": "죽전휴게소",
+                    "gasolinePrice": "X",
+                    "diselPrice": "-",
+                    "lpgPrice": "N/A",
+                }
+            ]
+        )
+    )
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+
+    fuel = client.restarea.fuel_prices(oil_company="EX-OIL").items[0]
+
+    assert fuel.gasoline_price is None
+    assert fuel.diesel_price is None
+    assert fuel.lpg_price is None
 
 
 def test_restarea_convenience_facilities_stays_raw_until_schema_is_verified() -> None:
