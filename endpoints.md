@@ -190,6 +190,10 @@ print(res.items[0].traffic_volume)
 - **포털**: `data.ex.co.kr`
 - **경로**: `/openapi/burstInfo/realTimeSms`
 - **메서드**: `client.traffic.incident()`
+- **snapshot 검증**: 정상 응답의 `realTimeSMSList`와 0 이상인 `count`가 모두
+  있어야 한다. 둘 중 하나가 없는 HTTP 200 오류 본문은 빈 목록이 아니라
+  `KrexParseError`로 처리하며, `count=0` + `realTimeSMSList=[]`만 명시적 빈
+  snapshot으로 인정한다.
 
 **파라미터**
 

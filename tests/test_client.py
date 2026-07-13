@@ -275,6 +275,36 @@ def test_traffic_incident_calls_realtime_sms_and_parses_live_shape() -> None:
     assert incident.raw["laneYn1"] == "N"
 
 
+def test_traffic_incident_accepts_explicit_empty_snapshot() -> None:
+    session = FakeSession(incident_payload([], count=0))
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+
+    page = client.traffic.incident()
+
+    assert page.items == ()
+    assert page.total_count == 0
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"message": "temporary error"},
+        {"count": 0},
+        {"count": 0, "realTimeSMSList": None},
+        {"count": -1, "realTimeSMSList": []},
+    ],
+)
+def test_traffic_incident_rejects_non_authoritative_empty_payload(
+    payload: dict[str, Any],
+) -> None:
+    session = FakeSession(payload)
+    client = KrexClient(ex_api_key="ex-key", retry_backoff=0, session=session)
+
+    with pytest.raises(KrexParseError, match="realTimeSms"):
+        client.traffic.incident()
+
+
 def test_traffic_incident_maps_altitude_key_to_longitude() -> None:
     # 포털 명세상 '돌발시작이정경도'가 altitude 키로 내려온다.
     session = FakeSession(
