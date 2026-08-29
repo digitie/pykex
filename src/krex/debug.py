@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import json
+import traceback as _traceback
 import unicodedata
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, is_dataclass
 from datetime import date, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
+
+from .exceptions import KrexError
 
 SENSITIVE_KEYS = frozenset(
     {
@@ -213,9 +216,32 @@ def slugify(value: str) -> str:
 
 
 def exception_to_debug_error(exc: BaseException) -> dict[str, Any]:
-    """예외를 DebugRun.error에 저장할 수 있는 작은 dict로 변환합니다."""
+    """예외를 DebugRun.error에 저장할 수 있는 구조화된 dict로 변환합니다.
 
-    return {"type": type(exc).__name__, "message": str(exc)}
+    `type`/`message`/`traceback`은 모든 예외에 대해 채워지고, `KrexError`
+    계열이면 `code`/`http_status`/`retry_after`/`url`/`params` 같은
+    provider 세부 필드도 함께 채워집니다. 반환값은 fixture나 UI에 그대로
+    노출되므로 `redact_sensitive()`를 거쳐 API 키 계열 값을 마스킹합니다.
+    """
+
+    payload: dict[str, Any] = {
+        "type": type(exc).__name__,
+        "message": str(exc),
+        "traceback": "".join(
+            _traceback.format_exception(type(exc), exc, exc.__traceback__)
+        ),
+    }
+    if isinstance(exc, KrexError):
+        payload.update(
+            {
+                "code": exc.code,
+                "http_status": exc.http_status,
+                "retry_after": exc.retry_after,
+                "url": exc.url,
+                "params": exc.params,
+            }
+        )
+    return cast(dict[str, Any], redact_sensitive(payload))
 
 
 def _sensitive_key(key: str) -> bool:

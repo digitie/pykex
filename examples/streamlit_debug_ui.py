@@ -6,6 +6,7 @@ from __future__ import annotations
 import inspect
 import json
 import sys
+import typing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -22,18 +23,33 @@ for module_name, module in list(sys.modules.items()):
         del sys.modules[module_name]
 
 try:
+    import pandas as pd
     import streamlit as st
 except ModuleNotFoundError as exc:  # pragma: no cover - 선택 실행 도구
     raise SystemExit('Streamlit UI를 쓰려면 `pip install -e ".[debug-ui]"`를 실행하세요.') from exc
 
-from krex import ApiCatalogItem, KrexClient, get_api_catalog, get_api_catalog_item, jsonable
+from krex import (
+    ApiCatalogItem,
+    KrexClient,
+    KrexCode,
+    get_api_catalog,
+    get_api_catalog_item,
+    jsonable,
+    save_fixture,
+)
 from krex._env import load_local_env
 from krex._http import normalize_api_key
 
 
 @dataclass(frozen=True)
 class ParameterSpec:
-    """디버그 UI에서 요청 파라미터 입력 폼을 만들기 위한 최소 명세."""
+    """디버그 UI에서 요청 파라미터 입력 폼을 만들기 위한 최소 명세.
+
+    `kind`는 어떤 위젯을 렌더링할지 결정한다: "text"는 `st.text_input`,
+    "int"는 `st.number_input`, "enum"은 `codes.py`의 `KrexCode` 값을
+    `st.selectbox`로 노출한다. `choices`는 kind가 "enum"일 때만 채워지는
+    (코드값, 라벨) 쌍이다.
+    """
 
     name: str
     required: bool
@@ -42,6 +58,8 @@ class ParameterSpec:
     help: str = ""
     default: Any = ""
     value_type: type = str
+    kind: str = "text"
+    choices: tuple[tuple[str, str], ...] = ()
 
 
 DEFAULT_PARAMS: dict[str, dict[str, Any]] = {
@@ -257,7 +275,10 @@ def _parameter_specs(selected: ApiCatalogItem) -> tuple[ParameterSpec, ...]:
 
     defaults = DEFAULT_PARAMS.get(selected.function, {})
     specs: list[ParameterSpec] = []
-    signature = inspect.signature(method)
+    # `krex.client`는 `from __future__ import annotations`를 쓰므로 기본 `inspect.signature()`는
+    # 어노테이션을 문자열로 반환한다. `eval_str=True`로 실제 타입을 얻어야 `RoadOperator | str`
+    # 같은 어노테이션에서 KrexCode 서브클래스를 찾아 selectbox를 렌더링할 수 있다.
+    signature = inspect.signature(method, eval_str=True)
     for name, parameter in signature.parameters.items():
         if name == "self" or parameter.kind == inspect.Parameter.VAR_KEYWORD:
             continue
@@ -266,6 +287,20 @@ def _parameter_specs(selected: ApiCatalogItem) -> tuple[ParameterSpec, ...]:
         required = parameter.default is inspect.Parameter.empty
         fallback_default = "" if required or parameter.default is None else parameter.default
         default = defaults.get(name, fallback_default)
+        enum_type = _enum_type_from_annotation(parameter.annotation)
+        if enum_type is not None:
+            specs.append(
+                ParameterSpec(
+                    name=name,
+                    required=required,
+                    label=_param_label(name),
+                    default=_enum_default_value(default),
+                    value_type=str,
+                    kind="enum",
+                    choices=enum_type.choices(),
+                )
+            )
+            continue
         specs.append(
             ParameterSpec(
                 name=name,
@@ -273,6 +308,7 @@ def _parameter_specs(selected: ApiCatalogItem) -> tuple[ParameterSpec, ...]:
                 label=_param_label(name),
                 default=default,
                 value_type=_value_type(name, default),
+                kind="int" if _value_type(name, default) is int else "text",
             )
         )
     for name, default in defaults.items():
@@ -285,9 +321,28 @@ def _parameter_specs(selected: ApiCatalogItem) -> tuple[ParameterSpec, ...]:
                 label=_param_label(name),
                 default=default,
                 value_type=_value_type(name, default),
+                kind="int" if _value_type(name, default) is int else "text",
             )
         )
     return tuple(specs)
+
+
+def _enum_type_from_annotation(annotation: Any) -> type[KrexCode] | None:
+    """`RoadOperator | str` 같은 파라미터 타입 힌트에서 `KrexCode` 서브클래스를 찾는다."""
+
+    if annotation is inspect.Parameter.empty:
+        return None
+    candidates: tuple[Any, ...] = typing.get_args(annotation) or (annotation,)
+    for candidate in candidates:
+        if isinstance(candidate, type) and issubclass(candidate, KrexCode):
+            return candidate
+    return None
+
+
+def _enum_default_value(value: Any) -> Any:
+    if isinstance(value, KrexCode):
+        return value.value
+    return value
 
 
 def _resolve_client_method(function: str) -> Any | None:
@@ -306,7 +361,9 @@ def _render_param_grid(specs: list[ParameterSpec], *, key_prefix: str) -> dict[s
         for column, spec in zip(columns, specs[index : index + 2], strict=False):
             with column:
                 widget_key = f"{key_prefix}:param:{spec.name}"
-                if spec.value_type is int:
+                if spec.kind == "enum":
+                    values[spec.name] = _render_enum_widget(spec, widget_key)
+                elif spec.kind == "int":
                     values[spec.name] = st.number_input(
                         spec.label,
                         min_value=0 if spec.name != "page_no" else 1,
@@ -324,6 +381,23 @@ def _render_param_grid(specs: list[ParameterSpec], *, key_prefix: str) -> dict[s
                         key=widget_key,
                     )
     return values
+
+
+def _render_enum_widget(spec: ParameterSpec, widget_key: str) -> str:
+    labels = {code: f"{code} — {label}" for code, label in spec.choices}
+    options = [code for code, _label in spec.choices]
+    if not spec.required:
+        options = ["", *options]
+        labels[""] = "(미설정)"
+    default_value = spec.default if spec.default in options else options[0]
+    return st.selectbox(
+        spec.label,
+        options,
+        index=options.index(default_value),
+        format_func=lambda code: labels.get(code, code),
+        help=spec.help or None,
+        key=widget_key,
+    )
 
 
 def _parse_extra_params(text: str) -> dict[str, Any]:
@@ -376,7 +450,7 @@ def _processed_result_tab(selected: ApiCatalogItem) -> None:
     processed = jsonable(run.processed)
     rows = processed.get("items") if isinstance(processed, dict) else None
     if isinstance(rows, list) and rows:
-        st.dataframe(rows, width="stretch", hide_index=True)
+        st.dataframe(pd.json_normalize(rows, sep="."), width="stretch", hide_index=True)
         return
     if processed:
         st.json(processed)
@@ -436,7 +510,71 @@ def _fixture_tab(selected: ApiCatalogItem, fixture_base_dir: str) -> None:
     if run is None:
         st.info("Raw Response 탭에서 API를 실행하면 fixture 초안을 확인합니다.")
         return
-    st.json(run.to_fixture_dict(name=f"{selected.function}-debug"))
+
+    key_prefix = f"fixture:{selected.provider}:{selected.function}"
+    with st.expander("Save as fixture", expanded=True):
+        case_name = st.text_input(
+            "Case name",
+            value=f"{selected.function}-debug",
+            key=f"{key_prefix}:case_name",
+        )
+        description = st.text_area(
+            "Description",
+            value=f"{selected.dataset_name} 디버그 UI 실행 결과",
+            key=f"{key_prefix}:description",
+        )
+        assertion_mode = st.selectbox(
+            "Assertion mode",
+            ["snapshot", "schema_only", "required_fields", "count"],
+            key=f"{key_prefix}:assertion_mode",
+        )
+        exclude_fields_raw = st.text_input(
+            "Exclude fields",
+            value="fetched_at, request_id, updated_at",
+            key=f"{key_prefix}:exclude_fields",
+        )
+        required_fields_raw = st.text_input(
+            "Required fields",
+            value="",
+            key=f"{key_prefix}:required_fields",
+        )
+        overwrite = st.checkbox(
+            "Overwrite existing fixture",
+            value=False,
+            key=f"{key_prefix}:overwrite",
+        )
+
+        assertion = {
+            "mode": assertion_mode,
+            "exclude_fields": [v.strip() for v in exclude_fields_raw.split(",") if v.strip()],
+            "required_fields": [v.strip() for v in required_fields_raw.split(",") if v.strip()],
+        }
+
+        st.subheader("Fixture preview")
+        st.json(
+            run.to_fixture_dict(name=case_name, description=description, assertion=assertion)
+        )
+
+        if st.button("Save as fixture", key=f"{key_prefix}:save"):
+            try:
+                path = save_fixture(
+                    base_dir=fixture_base_dir,
+                    function_name=selected.function,
+                    case_name=case_name,
+                    description=description,
+                    input_data=run.input,
+                    request_data=run.request,
+                    response_data=run.response,
+                    parsed_result=run.parsed,
+                    processed_result=run.processed,
+                    catalog=run.catalog,
+                    assertion=assertion,
+                    overwrite=overwrite,
+                )
+            except Exception as exc:  # pragma: no cover - UI 표시
+                st.error(str(exc))
+            else:
+                st.success(f"Saved: {path}")
 
 
 def _store_run(selected: ApiCatalogItem, run: Any) -> None:
