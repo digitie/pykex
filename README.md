@@ -1,10 +1,27 @@
 # python-krex-api
 
+![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
+![GPL-3.0-or-later 라이선스](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)
+![Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)
+
 한국도로공사(Korea Expressway Corporation, KEX) 공공데이터 OpenAPI를 Python에서 편하게 쓰기 위한 비공식 클라이언트 라이브러리입니다.
 
 `python-krex-api`는 `data.ex.co.kr`와 `data.go.kr`에 흩어진 고속도로 교통량, 실시간 소통, 통행료, 영업소, 휴게소, 휴게소별 날씨, 기준정보 API를 한 인터페이스로 감싸고, 응답을 Pydantic 모델과 enum으로 변환합니다.
 
-> 현재 저장소는 초기 구현 단계입니다. 세부 엔드포인트 명세는 [endpoints.md](endpoints.md), 지원 상태표는 [API_COVERAGE.md](API_COVERAGE.md), 코드표는 [codes.md](codes.md), 에러 매핑은 [error-codes.md](error-codes.md), 구현 규칙은 [SKILL.md](SKILL.md)와 [AGENTS.md](AGENTS.md)를 참고하세요.
+현재 진행 중인 작업은 [CHANGELOG.md](CHANGELOG.md#unreleased)를 참고하세요.
+
+## 먼저 읽을 문서
+
+| 필요 정보 | 문서 |
+|---|---|
+| 엔드포인트 상세 명세 | [endpoints.md](endpoints.md) |
+| 지원/live 검증 상태 | [API_COVERAGE.md](API_COVERAGE.md) |
+| 공통 코드표 · enum | [codes.md](codes.md) |
+| 에러 코드 매핑 | [error-codes.md](error-codes.md) |
+| 에이전트 구현 규칙 | [SKILL.md](SKILL.md), [AGENTS.md](AGENTS.md) |
+| 구조적 의사결정 기록 | [docs/decisions.md](docs/decisions.md) |
+| 기여 가이드 | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| 변경 이력 | [CHANGELOG.md](CHANGELOG.md) |
 
 ---
 
@@ -65,47 +82,66 @@ pip install python-krex-api
 
 ### 3단계: 사용
 
+`KrexClient`는 동기 클라이언트가 기본이고, `KrexClient.aio()`는 같은 namespace/메서드를 그대로 `await`할 수 있는 비동기 진입점입니다(`python-krheritage-api`와 같은 스타일). asyncio 애플리케이션이라면 이 방식을 대표 예제로 사용하세요.
+
+```python
+import asyncio
+
+from krex import CarType, KrexClient
+
+
+async def main() -> None:
+    async with KrexClient.aio() as client:
+        # 실시간 소통
+        flows = await client.traffic.flow(route_no="0010")
+        for item in flows.items[:5]:
+            print(item.route_name, item.conzone_name, item.speed, item.congestion_level)
+
+        # 영업소간 통행료
+        fees = await client.tollfee.between_tollgates(
+            start_unit_code="101",
+            end_unit_code="105",
+            car_type=CarType.LIGHT,
+        )
+        print(fees.items[0].toll_fee)
+
+        # 휴게소 표준데이터(data.go.kr)
+        areas = await client.restarea.list_all(route_name="경부고속도로")
+        print(areas.items[0].name, areas.items[0].has_ev_charger)
+
+        # 노선별 휴게시설과 휴게소 주유소 가격(data.ex.co.kr)
+        facilities = await client.restarea.route_facilities(route_code="0010")
+        fuel_prices = await client.restarea.fuel_prices(
+            service_area_code=facilities.items[0].service_area_code
+        )
+        print(facilities.items[0].service_area_name, fuel_prices.items[0].gasoline_price)
+
+        # 휴게소별 날씨(data.ex.co.kr)
+        weather = await client.restarea.latest_weather(lookback_hours=72)
+        if weather.first:
+            print(weather.first.unit_name, weather.first.weather, weather.first.temperature)
+
+
+asyncio.run(main())
+```
+
+스크립트나 동기 코드베이스에서는 `from_env()`로 만든 동기 클라이언트를 그대로 사용할 수 있습니다.
+
 ```python
 from krex import CarType, KrexClient
 
 client = KrexClient.from_env()
 
-# 실시간 소통
 flows = client.traffic.flow(route_no="0010")
 for item in flows.items[:5]:
     print(item.route_name, item.conzone_name, item.speed, item.congestion_level)
 
-# 영업소간 통행료
 fees = client.tollfee.between_tollgates(
     start_unit_code="101",
     end_unit_code="105",
     car_type=CarType.LIGHT,
 )
 print(fees.items[0].toll_fee)
-
-# 휴게소 표준데이터(data.go.kr)
-areas = client.restarea.list_all(route_name="경부고속도로")
-print(areas.items[0].name, areas.items[0].has_ev_charger)
-
-# 노선별 휴게시설과 휴게소 주유소 가격(data.ex.co.kr)
-facilities = client.restarea.route_facilities(route_code="0010")
-fuel_prices = client.restarea.fuel_prices(service_area_code=facilities.items[0].service_area_code)
-print(facilities.items[0].service_area_name, fuel_prices.items[0].gasoline_price)
-
-# 휴게소별 날씨(data.ex.co.kr)
-weather = client.restarea.latest_weather(lookback_hours=72)
-if weather.first:
-    print(weather.first.unit_name, weather.first.weather, weather.first.temperature)
-```
-
-비동기 코드에서는 `python-krheritage-api`와 같은 `aio()` 진입점을 사용할 수 있습니다.
-
-```python
-from krex import KrexClient
-
-async with KrexClient.aio() as client:
-    flows = await client.traffic.flow(route_no="0010")
-    print(flows.first)
 ```
 
 ### 키를 직접 넘기는 방식
@@ -198,22 +234,7 @@ python -m streamlit run examples/streamlit_debug_ui.py --server.port 8504
 
 ## 구현 상태
 
-현재 구현은 “공통 호출 기반 + 핵심 모델 우선” 단계입니다.
-
-| 영역 | 상태 | 비고 |
-|---|---|---|
-| HTTP transport | 구현됨 | 5xx/네트워크 retry, 키 마스킹, JSON 파싱 |
-| `data.ex.co.kr` envelope | 구현됨 | `SUCCESS`, `NO_DATA`, 인증/한도/서버 코드 매핑 |
-| `data.go.kr` envelope | 구현됨 | `response.header.resultCode` 검사 |
-| 교통 핵심 모델 | 부분 구현 | `TrafficByIc`, `TrafficFlow`, `Incident` |
-| 통행료 핵심 모델 | 구현됨 | `TollFee`, `Tollgate` |
-| 휴게소 핵심 모델 | 부분 구현 | 노선별 휴게시설, 표준 휴게소, 휴게소별 날씨, 주유소 가격, 음식가격 |
-| 시설/행정 상세 모델 | 원시 dict 반환 | 경로 검증 후 Pydantic 모델 승격 예정 |
-| 라이브 호출 테스트 | 미포함 | 기본 테스트는 네트워크를 쓰지 않음 |
-
-검증되지 않은 포털 경로나 데이터셋은 무리해서 모델로 고정하지 않고 `Page[dict]`로 반환합니다. 실제 응답 fixture가 쌓이면 Pydantic 모델로 승격합니다.
-
-전체 지원/미지원/실서버 검증 상태는 [API_COVERAGE.md](API_COVERAGE.md)를 기준으로 관리합니다.
+영역별 구현/live 검증 상태는 [API_COVERAGE.md](API_COVERAGE.md)를 기준으로 관리합니다. 검증되지 않은 포털 경로나 데이터셋은 무리해서 모델로 고정하지 않고 `Page[dict]`로 반환하며, 실제 응답 fixture가 쌓이면 Pydantic 모델로 승격합니다.
 
 ---
 
@@ -493,6 +514,6 @@ tests/
 
 ## 라이선스
 
-GPL-3.0-or-later. 자세한 조건은 [LICENSE](LICENSE)를 참고하세요.
+GPL-3.0-or-later. 자세한 조건은 [LICENSE](LICENSE)를 참고하세요. 이 라이선스는 이 저장소의 코드에만 적용됩니다.
 
-원천 데이터의 저작권과 이용조건은 한국도로공사, 공공데이터포털, 각 데이터 제공기관 정책을 따릅니다. 이 프로젝트는 비공식 라이브러리이며 한국도로공사와 무관합니다.
+원천 데이터의 저작권과 이용조건은 한국도로공사, 공공데이터포털, 각 데이터 제공기관 정책을 따릅니다. 이 프로젝트는 비공식 라이브러리이며 한국도로공사와 무관합니다. 실제 이용 전에는 각 제공기관의 최신 이용약관을 직접 확인하세요 — 본 안내는 법적 자문이 아니며 법적 효력을 보장하지 않습니다.
