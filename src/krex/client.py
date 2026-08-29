@@ -54,6 +54,7 @@ from .models import (
 T = TypeVar("T")
 E = TypeVar("E", bound=KrexCode)
 KST = timezone(timedelta(hours=9), "KST")
+_MAX_LATEST_WEATHER_LOOKBACK_HOURS = 240
 
 
 class KrexClient:
@@ -151,6 +152,8 @@ class KrexClient:
         parts = function.split(".")
         if len(parts) != 2 or any(part.startswith("_") or not part for part in parts):
             raise KrexInvalidParameterError("function must look like 'namespace.method'")
+        if get_api_catalog_item(function) is None:
+            raise KrexInvalidParameterError(f"unknown debug function: {function}")
         namespace = getattr(self, parts[0], None)
         method = getattr(namespace, parts[1], None)
         if not callable(method):
@@ -528,8 +531,19 @@ class RestareaService:
         when: datetime | None = None,
         lookback_hours: int = 48,
     ) -> Page[RestAreaWeather]:
+        """`when` 이전 시간대부터 과거로 조회해 비어 있지 않은 첫 페이지를 반환합니다.
+
+        `when`이 naive datetime이면 이미 KST인 것으로 간주합니다. UTC 등 다른
+        시간대의 naive datetime을 넘기면 실제 시각과 최대 9시간 오차가
+        발생하므로, tzinfo가 있는 datetime을 넘기는 것을 권장합니다.
+        """
+
         if lookback_hours < 0:
             raise ValueError("lookback_hours must be >= 0")
+        if lookback_hours > _MAX_LATEST_WEATHER_LOOKBACK_HOURS:
+            raise ValueError(
+                f"lookback_hours must be <= {_MAX_LATEST_WEATHER_LOOKBACK_HOURS}"
+            )
         base = _as_kst(when) if when is not None else datetime.now(KST)
         base = base.replace(minute=0, second=0, microsecond=0)
         last_raw: dict[str, Any] | None = None
@@ -680,11 +694,18 @@ class ReferenceService:
 
 def _parse_page(payload: NormalizedPayload, parser: Callable[[dict[str, Any]], T]) -> Page[T]:
     parsed = []
+    first_error: tuple[Exception, dict[str, Any]] | None = None
     for row in payload.items:
         try:
             parsed.append(parser(row))
         except (KeyError, TypeError, ValueError) as exc:
-            raise KrexParseError(f"failed to parse response record: {exc}", response=row) from exc
+            if first_error is None:
+                first_error = (exc, row)
+    if not parsed and first_error is not None:
+        error, error_row = first_error
+        raise KrexParseError(
+            f"failed to parse response record: {error}", response=error_row
+        ) from error
     return Page(
         items=tuple(parsed),
         page_no=payload.page_no,
@@ -982,18 +1003,26 @@ def _optional_code(enum_type: type[E], value: E | str | None, field: str) -> str
     return coerce_code(enum_type, value, field)
 
 
-def _enum_or_none(enum_type: type[T], value: Any) -> T | None:
+def _enum_or_none(enum_type: type[E], value: Any) -> E | None:
     text = strip_or_none(value)
     if text is None:
         return None
-    return enum_type(text)  # type: ignore[call-arg]
+    return enum_type(text)
 
 
 def _get(row: dict[str, Any], *names: str) -> Any:
+    fallback: Any = None
+    fallback_found = False
     for name in names:
-        if name in row:
-            return row[name]
-    return None
+        if name not in row:
+            continue
+        value = row[name]
+        if strip_or_none(value) is not None:
+            return value
+        if not fallback_found:
+            fallback = value
+            fallback_found = True
+    return fallback
 
 
 def _required(row: dict[str, Any], *names: str) -> Any:

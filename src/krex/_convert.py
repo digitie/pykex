@@ -62,9 +62,11 @@ def to_bool_yn(value: Any) -> bool | None:
 
 
 def normalize_items(value: Any, field: str) -> list[dict[str, Any]]:
-    if value is None:
+    if value is None or value == "":
         return []
     if isinstance(value, dict):
+        if not value:
+            return []
         return [value]
     if isinstance(value, list) and all(isinstance(item, dict) for item in value):
         return value

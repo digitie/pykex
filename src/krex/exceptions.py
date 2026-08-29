@@ -57,10 +57,6 @@ class KrexServerError(KrexError):
     """제공자 서버 또는 게이트웨이 장애일 때 발생합니다."""
 
 
-class KrexServiceUnavailableError(KrexServerError):
-    """제공자 서비스를 일시적으로 사용할 수 없을 때 발생합니다."""
-
-
 class KrexParseError(KrexError):
     """응답을 예상한 형태로 파싱할 수 없을 때 발생합니다."""
 
@@ -71,6 +67,10 @@ class KrexNetworkError(KrexError):
 
 class KrexTimeoutError(KrexNetworkError):
     """요청 시간이 초과됐을 때 발생합니다."""
+
+
+class KrexServiceUnavailableError(KrexServerError, KrexTimeoutError):
+    """제공자 서비스를 일시적으로 사용할 수 없을 때 발생합니다."""
 
 
 class KrexConnectionError(KrexNetworkError):
