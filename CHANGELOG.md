@@ -54,3 +54,9 @@
 - Empty success response의 `count=0`을 `Page.total_count == 0`으로 보존.
 - `1,994원`, O/X boolean flag 같은 실제 Krex 휴게소 API 값을 변환 helper가 처리.
 - Rest-area route facility parsing에서 `serviceAreaName`이 비어 있어도 code와 facility metadata가 있으면 허용.
+- 4인 전문 리뷰어 서브에이전트의 적대적 코드 리뷰로 발견·검증된 버그 수정: `_parse_page`가 페이지의
+  행 하나만 파싱에 실패해도 전체 페이지를 버려서, 실시간 사고정보(`traffic.incident()`) 응답 중
+  무관한 필드 하나가 깨지면 나머지 정상 사고까지 전부 사라지던 문제(개별 행 파싱 실패는 건너뛰고,
+  전부 실패했을 때만 예외를 던지도록 수정), `_get()`의 다중 키 fallback이 값이 아니라 키 존재
+  여부만 확인해 `entrpsNm`이 빈 문자열이면 값이 채워진 `restAreaNm`으로 넘어가지 않고 전체 휴게소
+  목록 조회가 실패하던 문제 등. GitHub Actions CI(`lint`/`typecheck`/`test`) 추가.

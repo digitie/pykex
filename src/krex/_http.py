@@ -29,6 +29,8 @@ from .exceptions import (
 
 T = TypeVar("T")
 
+_MAX_BACKOFF_SECONDS = 30.0
+
 
 def _load_httpx() -> Any:
     try:
@@ -38,7 +40,7 @@ def _load_httpx() -> Any:
     return httpx
 
 
-def _run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
+def _run_sync(coroutine: Coroutine[Any, Any, T], *, timeout: float | None = None) -> T:
     """Run async transport code from the sync public API.
 
     Streamlit, notebooks, and GUI apps may already have a running event loop. In that case the
@@ -62,7 +64,9 @@ def _run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
 
     thread = threading.Thread(target=runner, daemon=True)
     thread.start()
-    thread.join()
+    thread.join(timeout=timeout)
+    if thread.is_alive():
+        raise KrexTimeoutError("sync API call timed out waiting for background event loop thread")
     if errors:
         raise errors[0]
     return result[0]
@@ -100,15 +104,15 @@ class KrexHttp:
         self.go_api_key = normalize_api_key(self.go_api_key)
 
     def get_ex(self, path: str, params: dict[str, Any] | None = None) -> NormalizedPayload:
-        return _run_sync(self.aget_ex(path, params))
+        return _run_sync(self.aget_ex(path, params), timeout=self._sync_join_timeout())
 
     async def aget_ex(self, path: str, params: dict[str, Any] | None = None) -> NormalizedPayload:
         key = normalize_api_key(self.ex_api_key)
         if not key:
             raise KrexAuthError("KEX_EX_API_KEY is not set and ex_api_key was not provided")
-        query = {"key": key, "type": "json"}
-        if params:
-            query.update(params)
+        query = dict(params) if params else {}
+        query["key"] = key
+        query["type"] = "json"
         url = f"{self.ex_base_url.rstrip('/')}/{path.lstrip('/')}"
         return await self._get(url, query, provider="ex")
 
@@ -119,7 +123,9 @@ class KrexHttp:
         *,
         standard: bool = False,
     ) -> NormalizedPayload:
-        return _run_sync(self.aget_go(url, params, standard=standard))
+        return _run_sync(
+            self.aget_go(url, params, standard=standard), timeout=self._sync_join_timeout()
+        )
 
     async def aget_go(
         self,
@@ -131,10 +137,9 @@ class KrexHttp:
         key = normalize_api_key(self.go_api_key)
         if not key:
             raise KrexAuthError("DATA_GO_KR_SERVICE_KEY is not set and go_api_key was not provided")
-        query = {"serviceKey": key}
+        query = dict(params) if params else {}
+        query["serviceKey"] = key
         query["type" if standard else "_type"] = "json"
-        if params:
-            query.update(params)
         return await self._get(url, query, provider="go")
 
     async def _get(self, url: str, params: dict[str, Any], *, provider: str) -> NormalizedPayload:
@@ -165,8 +170,18 @@ class KrexHttp:
                         await self._sleep_before_retry(attempt)
                         continue
                     raise last_error from exc
+                except httpx.TooManyRedirects as exc:
+                    raise KrexConnectionError(
+                        str(exc), url=url, params=_mask_params(params)
+                    ) from exc
                 except httpx.HTTPError as exc:
                     last_error = KrexConnectionError(str(exc), url=url, params=_mask_params(params))
+                    if attempt < attempts - 1:
+                        await self._sleep_before_retry(attempt)
+                        continue
+                    raise last_error from exc
+                except Exception as exc:  # noqa: BLE001 - normalize non-httpx session failures.
+                    last_error = KrexNetworkError(str(exc), url=url, params=_mask_params(params))
                     if attempt < attempts - 1:
                         await self._sleep_before_retry(attempt)
                         continue
@@ -191,14 +206,17 @@ class KrexHttp:
 
     async def _sleep_before_retry(self, attempt: int) -> None:
         if self.retry_backoff > 0:
-            await asyncio.sleep(self.retry_backoff * (2**attempt))
+            await asyncio.sleep(min(self.retry_backoff * (2**attempt), _MAX_BACKOFF_SECONDS))
 
     async def aclose(self) -> None:
         if self.session is not None:
             await _close_session(self.session)
 
     def close(self) -> None:
-        _run_sync(self.aclose())
+        _run_sync(self.aclose(), timeout=self.timeout)
+
+    def _sync_join_timeout(self) -> float:
+        return self.timeout * (max(0, self.max_retries) + 1) * 2
 
     async def __aenter__(self) -> KrexHttp:
         return self
@@ -222,34 +240,36 @@ class KrexHttp:
         status = int(response.status_code)
         masked_params = _mask_params(params)
         headers = _response_headers(response)
+        secrets = (self.ex_api_key, self.go_api_key)
+        body_preview = _redact_secrets(response.text[:200], secrets)
         if status in (401, 403):
-            self.last_response = _debug_response(status, headers, response.text[:200])
+            self.last_response = _debug_response(status, headers, body_preview)
             raise KrexAuthError(
-                f"HTTP {status}: {response.text[:200]}",
+                f"HTTP {status}: {body_preview}",
                 http_status=status,
                 params=masked_params,
             )
         if status == 400:
-            self.last_response = _debug_response(status, headers, response.text[:200])
-            raise KrexBadRequestError(response.text[:200], http_status=status, params=masked_params)
+            self.last_response = _debug_response(status, headers, body_preview)
+            raise KrexBadRequestError(body_preview, http_status=status, params=masked_params)
         if status == 404:
-            self.last_response = _debug_response(status, headers, response.text[:200])
+            self.last_response = _debug_response(status, headers, body_preview)
             raise KrexBadRequestError(
                 "endpoint not found",
                 http_status=status,
                 params=masked_params,
             )
         if status == 429:
-            self.last_response = _debug_response(status, headers, response.text[:200])
+            self.last_response = _debug_response(status, headers, body_preview)
             raise KrexQuotaExceededError(
-                response.text[:200],
+                body_preview,
                 http_status=status,
                 params=masked_params,
             )
         if 500 <= status < 600:
-            self.last_response = _debug_response(status, headers, response.text[:200])
+            self.last_response = _debug_response(status, headers, body_preview)
             raise KrexServerError(
-                f"HTTP {status}: {response.text[:200]}",
+                f"HTTP {status}: {body_preview}",
                 http_status=status,
                 params=masked_params,
             )
@@ -257,13 +277,13 @@ class KrexHttp:
         try:
             payload = response.json()
         except ValueError as exc:
-            self.last_response = _debug_response(status, headers, response.text[:200])
+            self.last_response = _debug_response(status, headers, body_preview)
             raise KrexParseError(
                 f"JSON parse failure: {exc}",
                 http_status=status,
                 params=masked_params,
             ) from exc
-        self.last_response = _debug_response(status, headers, payload)
+        self.last_response = _debug_response(status, headers, _redact_payload(payload, secrets))
         if not isinstance(payload, dict):
             raise KrexParseError(
                 "response JSON must be an object",
@@ -277,7 +297,12 @@ class KrexHttp:
 
 
 def _normalize_ex_payload(payload: dict[str, Any], *, params: dict[str, Any]) -> NormalizedPayload:
-    code = str(payload.get("code") or payload.get("resultCode") or "SUCCESS")
+    if "code" in payload:
+        code = str(payload.get("code"))
+    elif "resultCode" in payload:
+        code = str(payload.get("resultCode"))
+    else:
+        code = "SUCCESS"
     message = str(payload.get("message") or payload.get("resultMsg") or "")
     if code not in {"SUCCESS", "INFO-000", "00"}:
         _raise_ex_code(code, message, payload, params)
@@ -287,11 +312,17 @@ def _normalize_ex_payload(payload: dict[str, Any], *, params: dict[str, Any]) ->
         items = normalize_items(raw_items, "items")
     except TypeError as exc:
         raise KrexParseError(str(exc), response=payload, params=params) from exc
+    try:
+        page_no = to_int_or_none(payload.get("pageNo"))
+        num_of_rows = to_int_or_none(payload.get("numOfRows"))
+        total_count = to_int_or_none(_first_present(payload, "count", "totalCount"))
+    except ValueError as exc:
+        raise KrexParseError(str(exc), response=payload, params=params) from exc
     return NormalizedPayload(
         items=items,
-        page_no=to_int_or_none(payload.get("pageNo")),
-        num_of_rows=to_int_or_none(payload.get("numOfRows")),
-        total_count=to_int_or_none(_first_present(payload, "count", "totalCount")),
+        page_no=page_no,
+        num_of_rows=num_of_rows,
+        total_count=total_count,
         raw=payload,
     )
 
@@ -321,30 +352,44 @@ def _normalize_go_payload(payload: dict[str, Any], *, params: dict[str, Any]) ->
         items = normalize_items(raw_items, "response.body.items")
     except TypeError as exc:
         raise KrexParseError(str(exc), response=payload, params=params) from exc
+    try:
+        page_no = to_int_or_none(body.get("pageNo"))
+        num_of_rows = to_int_or_none(body.get("numOfRows"))
+        total_count = to_int_or_none(body.get("totalCount"))
+    except ValueError as exc:
+        raise KrexParseError(str(exc), response=payload, params=params) from exc
     return NormalizedPayload(
         items=items,
-        page_no=to_int_or_none(body.get("pageNo")),
-        num_of_rows=to_int_or_none(body.get("numOfRows")),
-        total_count=to_int_or_none(body.get("totalCount")),
+        page_no=page_no,
+        num_of_rows=num_of_rows,
+        total_count=total_count,
         raw=payload,
     )
 
 
 def _ex_items(payload: dict[str, Any]) -> Any:
     for key in ("list", "List", "data", "items", "item", "realTimeSMSList"):
-        if key in payload:
-            return payload[key]
-    for key, value in payload.items():
-        metadata_keys = {"code", "message", "count", "pageNo", "numOfRows", "pageSize"}
-        if key not in metadata_keys and isinstance(value, list):
+        value = payload.get(key)
+        if value is not None:
             return value
-    return []
+    metadata_keys = {"code", "message", "count", "pageNo", "numOfRows", "pageSize"}
+    candidates = [
+        value
+        for key, value in payload.items()
+        if key not in metadata_keys and isinstance(value, list)
+    ]
+    if len(candidates) > 1:
+        raise KrexParseError(
+            "ambiguous EX payload: multiple top-level list fields", response=payload
+        )
+    return candidates[0] if candidates else []
 
 
 def _first_present(payload: dict[str, Any], *keys: str) -> Any:
     for key in keys:
-        if key in payload:
-            return payload[key]
+        value = payload.get(key)
+        if value is not None:
+            return value
     return None
 
 
@@ -400,13 +445,33 @@ def _raise_go_code(
     raise KrexError(text, **kwargs)
 
 
+def _mask_value(value: str) -> str:
+    return value[:4] + "..." if len(value) > 4 else "***"
+
+
 def _mask_params(params: dict[str, Any]) -> dict[str, Any]:
     masked = dict(params)
     for key in ("key", "serviceKey"):
         if key in masked:
-            value = str(masked[key])
-            masked[key] = value[:4] + "..." if len(value) > 4 else "***"
+            masked[key] = _mask_value(str(masked[key]))
     return masked
+
+
+def _redact_secrets(text: str, secrets: tuple[str | None, ...]) -> str:
+    for secret in secrets:
+        if secret and len(secret) > 4:
+            text = text.replace(secret, _mask_value(secret))
+    return text
+
+
+def _redact_payload(value: Any, secrets: tuple[str | None, ...]) -> Any:
+    if isinstance(value, dict):
+        return {key: _redact_payload(item, secrets) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_redact_payload(item, secrets) for item in value]
+    if isinstance(value, str) and value in secrets:
+        return _mask_value(value)
+    return value
 
 
 def normalize_api_key(value: str | None) -> str | None:

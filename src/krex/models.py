@@ -28,6 +28,14 @@ class KrexModel(BaseModel):
 
 
 class Page(KrexModel, Generic[T]):
+    """읽기 전용 페이지네이션 컨테이너.
+
+    다른 `KrexModel`과 달리 `__iter__`는 pydantic 표준 (필드명, 값) 순회가
+    아니라 `items`를 순회하도록 오버라이드되어 있다. 따라서 `dict(page)`는
+    동작하지 않는다(각 item을 (key, value) 쌍으로 잘못 언패킹하려다 실패한다).
+    필드 dict가 필요하면 `page.model_dump()`를 사용할 것.
+    """
+
     items: tuple[T, ...]
     page_no: int | None = None
     num_of_rows: int | None = None
